@@ -1,3 +1,5 @@
+import random
+
 from PIL import Image  # Importing Pillow (Image Library)
 
 # BLACK is used to indicate an area a maze can be generated in,
@@ -8,7 +10,23 @@ BLACK = (0, 0, 0)
 
 def can_connect(mask: Image.Image, pixel_a: tuple[int, int], pixel_b: tuple[int, int]) -> bool:
     """decides whether two image points pixel_a and pixel_b can be connected"""
-    pass
+    # Currently only works when points have the same x or y coordinate
+
+    if pixel_a[0] == pixel_b[0]:  # both pixels lie on the same vertical line
+        # loops through the smallest y coordinate to the largest y coordinate
+        for y in range(min(pixel_a[1], pixel_b[1]), max(pixel_a[1], pixel_b[1])+1):
+            if mask.getpixel((pixel_a[0], y))[:3] == WHITE:
+                return False
+
+    elif pixel_a[1] == pixel_b[1]:  # both pixels lie on the same horizontal line
+        # loops through the smallest x coordinate to the largest x coordinate
+        for x in range(min(pixel_a[0], pixel_b[0]), max(pixel_a[0], pixel_b[0])+1):
+            if mask.getpixel((x, pixel_b[1]))[:3] == WHITE:
+                return False
+    else:
+        raise ValueError
+
+    return True  # no white pixels found, so points must be connected
 
 
 def get_possible_adjacents(x: int, y: int, rows: int, cols: int) -> list[(int, int)]:
@@ -34,11 +52,27 @@ def cell_to_pixel(x_or_y: int, width_or_height: float) -> int:
     return int(width_or_height * (x_or_y+0.5))
 
 
-def generate_maze_from_mask(mask: Image.Image, rows: int, cols: int):
+def debug_connect(img, pixel_a, pixel_b):
+    if pixel_a[0] == pixel_b[0]:  # both pixels lie on the same vertical line
+        # loops through the smallest y coordinate to the largest y coordinate
+        for y in range(min(pixel_a[1], pixel_b[1]), max(pixel_a[1], pixel_b[1])):
+            img.putpixel((pixel_a[0], y), BLACK)
+
+    elif pixel_a[1] == pixel_b[1]:  # both pixels lie on the same horizontal line
+        # loops through the smallest x coordinate to the largest x coordinate
+        for x in range(min(pixel_a[0], pixel_b[0]), max(pixel_a[0], pixel_b[0])):
+            img.putpixel((x, pixel_b[1]), BLACK)
+    else:
+        raise ValueError
+
+
+def generate_maze_from_mask(mask: Image.Image, rows: int, cols: int, seed=None):
     cell_width = mask.width / rows
-    cell_height = mask.height / cols  # width and height of one cell
+    cell_height = mask.height / cols  # width and height of one cell, might not be whole number
     adjacency_dict = {}  # initailises an empty adjacency dictionary
     # will contain (x,y) coords as keys and lists of adjacent (x,y) coords as values
+
+    maze = Image.new("RGB", mask.size, WHITE)
 
     for y in range(cols):
         for x in range(rows):
@@ -49,26 +83,53 @@ def generate_maze_from_mask(mask: Image.Image, rows: int, cols: int):
             if mask.getpixel(cur_pixel) != WHITE:
                 # current pixel is not WHITE, it is in the maze
                 # so put it in adjacency_dict
-                adjacency_dict[cur_pixel] = []
+                adjacency_dict[(x, y)] = []
 
                 #  loop through possible neighbours, check is connection is possible,
-                #  if it is, add neighbour to the list adjacency_dict[cur_pixel]
+                #  if it is, add neighbour to the list adjacency_dict[(x,y)]
                 for (neighbour_x, neighbour_y) in get_possible_adjacents(x, y, rows, cols):
                     neighbour_pixel = (cell_to_pixel(neighbour_x, cell_width),
                                        cell_to_pixel(neighbour_y, cell_height))
                     if can_connect(mask, cur_pixel, neighbour_pixel):
-                        adjacency_dict[cur_pixel].append(neighbour_pixel)
+                        adjacency_dict[(x, y)].append((neighbour_x, neighbour_y))
+                        # debug_connect(maze, cur_pixel, neighbour_pixel)
 
-    return mask
+    generate_maze_from_graph(maze, adjacency_dict, cell_width, cell_height, seed)
+
+    return maze
+
+
+def generate_maze_from_graph(img, adjacency_dict, cell_width, cell_height, seed=None):
+    if seed is not None:
+        random.seed(seed)
+    to_do = [next(iter(adjacency_dict))]  # this list acts as a stack of cells to explore
+    # any root can be chosen, assuming all nodes are connected
+    # by the end of generation, all cells will be connected.
+    visited = set()  # the set of points that have already been visited.
+    while len(to_do) > 0:
+        current = to_do[0]
+        visited.add(current)
+        unvisited_neighbours = [n for n in adjacency_dict[current] if n not in visited]
+        if len(unvisited_neighbours) == 0:  # no unvisited neighbours, cell completely explored
+            to_do.pop(0)
+        else:
+            neighbour = random.choice(unvisited_neighbours)  # pick a random neighbour to continue traversal
+            debug_connect(img, (cell_to_pixel(neighbour[0], cell_width),
+                          cell_to_pixel(neighbour[1], cell_height)),
+                          (cell_to_pixel(current[0], cell_width),
+                           cell_to_pixel(current[1], cell_height)))
+
+            to_do.insert(0, neighbour)  # push new cell to stack
 
 
 if __name__ == "__main__":
-    dino_mask = Image.open("maze_masks/dino_mask.png")
+    dino_mask = Image.open("maze_masks/dino_mask.png").convert("RGB")
     number_rows = 30  # arbitrary number chosen for testing purposes
 
     # approximates square cells by making the ratio of rows to columns equal to
-    # the ratio of width to height of dino_mask
+    # the ratio of width to height of image
     number_cols = (number_rows * dino_mask.height) // dino_mask.width
 
     dino_maze = generate_maze_from_mask(dino_mask, number_rows, number_cols)
+    dino_maze.show()
     dino_maze.save("tmp.png")
