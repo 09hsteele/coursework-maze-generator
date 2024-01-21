@@ -18,7 +18,7 @@ def test(n: str):
     mask = Image.open("MazeGenerator/maze_masks/dino_mask_bigger.png").convert("RGB")
     n_cols = (n_rows*mask.height)//mask.width
     seed = request.args.get("seed")
-    maze = generator.generate_maze_from_mask(mask, n_rows, n_cols, seed)
+    maze = generator.Ma(mask, n_rows, n_cols, seed)
 
     img_io = BytesIO()
     maze.save(img_io, 'PNG')
