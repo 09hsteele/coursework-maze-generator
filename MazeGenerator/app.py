@@ -15,10 +15,10 @@ def hello_world():  # put application's code here
 def test(n: str):
     n_rows = int(n)
 
-    mask = Image.open("MazeGenerator/maze_masks/dino_mask_bigger.png").convert("RGB")
-    n_cols = (n_rows*mask.height)//mask.width
+    mask = Image.open("MazeGenerator/maze_masks/dino_mask.png").convert("RGB")
+    n_cols = (n_rows*mask.width)//mask.height
     seed = request.args.get("seed")
-    maze = generator.Ma(mask, n_rows, n_cols, seed)
+    maze = generator.MazeTemplate(mask, n_rows, n_cols).generate(seed)
 
     img_io = BytesIO()
     maze.save(img_io, 'PNG')
