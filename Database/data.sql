@@ -1,0 +1,1 @@
+INSERT INTO Category (Name, Description) VALUES ("Dinosaurs", "")

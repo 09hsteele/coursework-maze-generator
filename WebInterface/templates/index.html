@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% set this_page = "Home" %}
+{% block content %}
+        <h1>Generate a Maze</h1>
+        <p>Choose one of the shapes below to generate a maze</p>
+        <div class="container-fluid">
+            <div class="row row-cols-auto">
+                {% for name in mazes %}
+                    <a href="/generate.html?maze_shape={{ loop.index0 }}" class="col maze-list-item btn btn-light">
+                        <img src="/static/maze_{{ loop.index0 }}.png" draggable="false">
+                        <div>{{ name.0 }}</div>
+                    </a>
+                {% endfor %}
+            </div>
+        </div>
+{% endblock %}

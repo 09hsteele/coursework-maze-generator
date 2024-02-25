@@ -237,8 +237,8 @@ def get_theoretical_adjacents(cell_coords: tuple[int, int]) -> list[tuple[int, i
 
 
 if __name__ == "__main__":
-    dino_mask = Image.open("maze_masks/dino_mask.png").convert("RGB")
-    number_rows = 15  # arbitrary number chosen to test generation
+    dino_mask = Image.open("maze_masks/favicon.png").convert("RGB")
+    number_rows = 5  # arbitrary number chosen to test generation
 
     # approximates square cells by making the ratio of rows to columns equal to
     # the ratio of width to height of image (approximated to the nearest integer)

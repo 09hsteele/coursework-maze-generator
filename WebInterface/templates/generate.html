@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block content %}
+    <p>Generating a maze in the shape of: "<span>{{ mazes[shapeID].0 }}</span>":</p>
+    <div class="container">
+        <div class="row " id="generator-columns">
+            <form class="col-lg-4 col-sm-12" action="javascript:window.print()">
+                {% set maze_start_size = 20 %}
+                <label for="maze-size-slider">Size of the maze: <span id="maze-size-value">{{ maze_start_size }}</span></label><br>
+                <input id="maze-size-slider" type="range" min="10" max="100" value="{{ maze_start_size }}"
+                       onchange="updatePreview(this);">
+                <br><br>
+                <label for="inlcude-solution-check">Include solution:</label>
+                <input type="checkbox" id="inlcude-solution-check">
+                <br><br>
+                <input type="submit" value="Print">
+            </form>
+            <div class="col-lg-8 col-sm-12 position-relative" id="preview-container">
+                <img id="generate-preview" src="/generated_maze.png?maze_shape={{ shapeID }}&maze_size={{ maze_start_size }}"
+                     alt="">
+                <div id="preview-updating">Updating...</div>
+            </div>
+        </div>
+    </div>
+    <script>
+        function updatePreview(elem) {
+            document.getElementById('maze-size-value').innerText = elem.value;
+            let container = $('#preview-container');
+            let preview_img = $('#generate-preview');
+            let initial_src = preview_img.attr("src");
+            let new_src = initial_src.replace(/maze_size=\d+($|\D)/, `maze_size=${elem.value}$1`);
+                //.replace(/seed=[\d.]*($|\D)/, `seed=${Math.random()}$1`)
+            console.log(initial_src);
+            container.addClass('updating');
+            preview_img.attr("src", new_src)
+                .on("load", function () {
+                    container.removeClass('updating');
+                })
+
+        }
+    </script>
+
+    <style>
+    #generator-columns {
+        height: 50vh;
+    }
+        @media print {
+            * {
+                visibility: hidden;
+            }
+
+            #generate-preview {
+                visibility: visible;
+                position:fixed;
+                top:0;
+                width:100%;
+                height:100%;
+                left:0;
+                object-fit: contain;
+            }
+        }
+    </style>
+{% endblock %}
