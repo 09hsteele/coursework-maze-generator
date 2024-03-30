@@ -1,0 +1,9 @@
+.toast {
+    padding: 10px;
+    width:fit-content;
+}
+
+.toast-container {
+    display:grid;
+    justify-items: end;
+}

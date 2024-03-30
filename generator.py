@@ -4,7 +4,7 @@ from PIL import Image  # Importing Pillow (Image Library)
 
 # black is used to indicate an area a maze can be generated in,
 # white is where a maze cannot be generated (i.e. a wall must be put there)
-# pink should be placed on image borders and decides where start and end points are
+# pink should be placed on image borders and specifies where start and end points are
 MAZE_CAN_GENERATE_COLOUR = (0, 0, 0)
 ENTRANCES_COLOUR = (255, 0, 255)
 
@@ -53,7 +53,12 @@ class MazeTemplate:
         if seed is not None:
             random.seed(seed)
 
+        for k in list(self.adjacency_dict):
+            if len(self.adjacency_dict[k]) == 0:
+                self.adjacency_dict.pop(k)
+
         to_do = [next(iter(self.adjacency_dict.keys()))]
+
         # to_do list acts as a stack of cells to visit, initially containing an
         # arbitrary cell from adjacency_dict, as all cells should be connected,
         # the initial cell is unimportant. By the end of generation, all cells
@@ -110,7 +115,7 @@ class MazeTemplate:
             for x in range(int(cell_x * cell_width), int((cell_x + 1) * cell_width)):
                 image.putpixel((x, y), colour)
 
-        elif start_cell[1] == end_cell[1]:  # cells lie on same horizontal line
+        elif start_cell[1] == end_cell[1]:  # cells lie on same vertical line
             cell_y = start_cell[1]
             x = int((cell_width * (start_cell[0] + end_cell[0] + 1)) // 2)
             for y in range(int(cell_y * cell_height), int((cell_y + 1) * cell_height)):
@@ -128,7 +133,7 @@ class MazeTemplate:
 
         (x, y) = cell_coords
 
-        # add 0.5 to shift from top-left corner to centre of cell
+        # adding 0.5 to shift from top-left corner to centre of cell
         pixel_x = int((x + 0.5) * cell_width)
         pixel_y = int((y + 0.5) * cell_height)
 
@@ -155,25 +160,26 @@ class MazeTemplate:
 
         return True  # no white pixels found, so points must be connected
 
-    def debug_connect(self, pixel_a, pixel_b):
-        if pixel_a[0] == pixel_b[0]:  # both pixels lie on the same vertical line
-            # loops through the smallest y coordinate to the largest y coordinate
-            for y in range(min(pixel_a[1], pixel_b[1]), max(pixel_a[1], pixel_b[1])):
-                self.mask.putpixel((pixel_a[0], y), (255, 0, 255))
+    # def debug_connect(self, pixel_a, pixel_b):
+    #     if pixel_a[0] == pixel_b[0]:  # both pixels lie on the same vertical line
+    #         # loops through the smallest y coordinate to the largest y coordinate
+    #         for y in range(min(pixel_a[1], pixel_b[1]), max(pixel_a[1], pixel_b[1])):
+    #             self.mask.putpixel((pixel_a[0], y), (255, 0, 255))
+    #
+    #     elif pixel_a[1] == pixel_b[1]:  # both pixels lie on the same horizontal line
+    #         # loops through the smallest x coordinate to the largest x coordinate
+    #         for x in range(min(pixel_a[0], pixel_b[0]), max(pixel_a[0], pixel_b[0])):
+    #             self.mask.putpixel((x, pixel_b[1]), (255, 0, 255))
+    #     else:
+    #         raise NotImplementedError()
 
-        elif pixel_a[1] == pixel_b[1]:  # both pixels lie on the same horizontal line
-            # loops through the smallest x coordinate to the largest x coordinate
-            for x in range(min(pixel_a[0], pixel_b[0]), max(pixel_a[0], pixel_b[0])):
-                self.mask.putpixel((x, pixel_b[1]), (255, 0, 255))
-        else:
-            raise NotImplementedError()
-
-    def get_possible_adjacents(self, cell_coords):
+    def get_possible_adjacents(self, cell_coords: tuple[int, int]) -> list[tuple[int, int]]:
         """Deals with boundary cases of x and y being at edges/corners of cell grid
-        :returns: a list of (x,y) tuples representing cell coordinates of neighbours"""
+        :param cell_coords: the (x,y) tuple cell coordinates of the cell to consider
+        :return: a list of (x,y) tuples representing cell coordinates of neighbours"""
         return [(x, y) for (x, y) in get_theoretical_adjacents(cell_coords) if
                 0 <= x < self.cols and 0 <= y < self.rows]
-        # filters theoretical adjacents only keeping those in the image
+        # filters theoretical adjacents, only keeping those in the image
 
     def get_entrances(self) -> dict[tuple[int, int], tuple[int, int]]:
         """finds a list of connections that walls should not be drawn at as these
@@ -203,7 +209,7 @@ class MazeTemplate:
                             raise EntranceNotFoundError(f"pixel ({pixel_x}, {pixel_y})"
                                                         "did not produce a valid entrance")
                     entrances[(cell_x, cell_y)] = (cell_x - 1, cell_y)
-                elif pixel_y == self.mask.height-1:  # entrance is on bottom of maze
+                elif pixel_y == self.mask.height - 1:  # entrance is on bottom of maze
                     while (cell_x, cell_y) not in self.adjacency_dict:
                         cell_y -= 1
                         if cell_y < 0:
@@ -211,7 +217,7 @@ class MazeTemplate:
                             raise EntranceNotFoundError(f"pixel ({pixel_x}, {pixel_y})"
                                                         "did not produce a valid entrance")
                     entrances[(cell_x, cell_y)] = (cell_x, cell_y + 1)
-                elif pixel_x == self.mask.width-1:  # entrance is to right of maze
+                elif pixel_x == self.mask.width - 1:  # entrance is to right of maze
                     while (cell_x, cell_y) not in self.adjacency_dict:
                         cell_x -= 1
                         if cell_x < 0:
@@ -237,8 +243,8 @@ def get_theoretical_adjacents(cell_coords: tuple[int, int]) -> list[tuple[int, i
 
 
 if __name__ == "__main__":
-    dino_mask = Image.open("maze_masks/favicon.png").convert("RGB")
-    number_rows = 5  # arbitrary number chosen to test generation
+    dino_mask = Image.open("static/maze_3.png").convert("RGB")
+    number_rows = 50  # arbitrary number chosen to test generation
 
     # approximates square cells by making the ratio of rows to columns equal to
     # the ratio of width to height of image (approximated to the nearest integer)

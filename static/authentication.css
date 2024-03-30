@@ -1,0 +1,16 @@
+form {
+    width: 100%;
+    text-align: center;
+}
+input[type=password], input[type=text] {
+    margin:25px;
+}
+
+input::placeholder {
+    text-align: center;
+}
+
+#title {
+    width:100%;
+    text-align: center;
+}

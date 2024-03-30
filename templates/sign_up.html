@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block head %}
+    <link rel="stylesheet" href="static/authentication.css">
+{% endblock %}
+{% block content %}
+    <h1 id="title">Sign Up</h1>
+    <form>
+        <input placeholder="username" type="text" name="username" id="username"><br>
+        <input placeholder="password" type="password" name="password" id="password"><br>
+        <input placeholder="confirm password" type="password" id="confirmpassword"><br>
+        Already made an account? <a href="{{ url_for("login") }}">Log In</a><br><br>
+        <input type="submit" value="Sign Up">
+    </form>
+    <script>
+    </script>
+{% endblock %}
