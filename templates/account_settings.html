@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+
+{% block title %} Account Settings {% endblock %}
+
+{% block content %}
+    <h1>Settings</h1>
+    <div class="section">
+        <h3>Personal Information</h3>
+        <form id="personal_info_form" method="POST">
+            <label for="username">Username: </label>
+            <input disabled type="text" name="username" id="username" value="{{ current_user.info.username }}"><br>
+            <label for="firstname">Name: </label>
+            <input disabled type="text" name="firstname" id="firstname" value="{{ current_user.info.first_name }}">
+            <input disabled type="text" name="lastname" id="lastname" value="{{ current_user.info.last_name }}"><br><br>
+            <button type="button" id="edit_details_button">Edit Details</button>
+            <input type="submit" hidden id="save_details_button" value="Save Details">
+            <button hidden type="button" id="discard_changes_button" onclick="location.reload()">Don't Save</button>
+        </form>
+    </div>
+    <div class="section">
+        <h3>Change Password</h3>
+        <form action="{{ url_for("update_password") }}" class="change_password_form" method="POST">
+            <input name="current_password" type="password" placeholder="Old Password" required><br>
+            <input name="new_password" type="password" placeholder="New Password" required>
+            <input type="password" placeholder="Confirm New Password" required> <br><br>
+            <input type="submit" value="Change Password">
+        </form>
+    </div>
+    <div class="section">
+        <form action="{{ url_for("delete_account") }}" method="POST">
+            <p>Type your password below to delete your account</p>
+            <input type="password" name="password">
+            <button type="submit" href="{{ url_for("index") }}" class="text-bg-danger del-account">Delete Account</button>
+        </form>
+    </div>
+    <script src="{{ url_for("static", filename="user_validation.js") }}"></script>
+    <script>
+        $("#edit_details_button").on("click", e => {
+            $("#personal_info_form > input").each((_,elem)=>{
+                elem.disabled = false;
+            })
+            e.preventDefault();
+            console.log(e.target);
+            $(e.target).attr("hidden", "hidden");
+            $("#save_details_button").removeAttr("hidden");
+            $("#discard_changes_button").removeAttr("hidden");
+        })
+        $("#personal_info_form").on("submit", e=> {
+            if( !validate_username($("#username").val())) {
+                return false;
+            }
+            if ($("#username").val() === "{{ current_user.info.username }}") {
+                $("#username").attr("disabled", "disabled")
+            }
+            if ($("#firstname").val() === "{{ current_user.info.first_name }}") {
+                $("#firstname").attr("disabled", "disabled")
+            }
+            if ($("#lastname").val() === "{{ current_user.info.last_name }}") {
+                $("#lastname").attr("disabled", "disabled")
+            }
+        })
+    </script>
+{% endblock %}
+
+{% block head %}
+    <style>
+        .section {
+            margin: 20px 20px 100px;
+            padding:20px;
+        }
+
+    </style>
+{% endblock %}

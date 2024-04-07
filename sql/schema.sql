@@ -1,8 +1,19 @@
 PRAGMA foreign_keys = ON;
 
+DROP TABLE IF EXISTS Mazes;
 CREATE TABLE Mazes (
-    MazeID INTEGER UNIQUE NOT NULL,
+    MazeID INTEGER PRIMARY KEY,
     Name TEXT
+);
+
+DROP TABLE IF EXISTS Users;
+CREATE TABLE Users (
+    UserID INTEGER PRIMARY KEY,
+    Username TEXT UNIQUE NOT NULL,
+    FirstName TEXT NOT NULL,
+    LastName TEXT,
+    PasswordHash BLOB NOT NULL
+    -- TODD: Validate Username, PasswordHash
 );
 
 -- CREATE TABLE History (

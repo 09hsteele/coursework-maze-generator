@@ -1,12 +1,40 @@
 {% extends "base.html" %}
+
+{% block title %} Generating | {{ maze.Name }}{% endblock %}
+
+{% block head %}
+    <style>
+        #generator-columns {
+            height: 50vh;
+        }
+
+        @media print {
+            * {
+                visibility: hidden;
+            }
+
+            #generate-preview {
+                visibility: visible;
+                position: fixed;
+                top: 0;
+                width: 100%;
+                height: 100%;
+                left: 0;
+                object-fit: contain;
+            }
+        }
+    </style>
+{% endblock %}
+
+
 {% block content %}
-    <p>Generating a maze in the shape of: "<span>{{maze.Name}}</span>":</p>
+    <p>Generating a maze in the shape of: "<span>{{ maze.Name }}</span>":</p>
     <div class="container">
         <div class="row " id="generator-columns">
             <form class="col-lg-4 col-sm-12" action="javascript:window.print()">
-                {% set maze_start_size = 50 %}
+                {% set maze_start_size = 500 %}
                 <label for="maze-size-slider">Size of the maze: <span id="maze-size-value">{{ maze_start_size }}</span></label><br>
-                <input id="maze-size-slider" type="range" min="50" max="1000" value="{{ maze_start_size }}"
+                <input id="maze-size-slider" type="range" min="100" max="1000" value="{{ maze_start_size }}"
                        onchange="updatePreview(this);">
                 <br><br>
                 <label for="inlcude-solution-check">Include solution:</label>
@@ -39,25 +67,4 @@
         }
     </script>
 
-    <style>
-        #generator-columns {
-            height: 50vh;
-        }
-
-        @media print {
-            * {
-                visibility: hidden;
-            }
-
-            #generate-preview {
-                visibility: visible;
-                position: fixed;
-                top: 0;
-                width: 100%;
-                height: 100%;
-                left: 0;
-                object-fit: contain;
-            }
-        }
-    </style>
 {% endblock %}

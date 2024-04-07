@@ -6,7 +6,7 @@
         <div class="container-fluid">
             <div class="row row-cols-auto">
                 {% for maze in mazes %}
-                    <a href="/generate.html?maze_shape={{maze.MazeID}}" class="col maze-list-item btn btn-light">
+                    <a href="{{ url_for("generate_ui") }}?maze_shape={{maze.MazeID}}" class="col maze-list-item btn btn-light">
                         <img src="/static/maze_{{maze.MazeID}}.png" draggable="false">
                         <div>{{maze.Name}}</div>
                     </a>

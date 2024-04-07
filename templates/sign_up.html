@@ -2,15 +2,34 @@
 {% block head %}
     <link rel="stylesheet" href="static/authentication.css">
 {% endblock %}
+
+{% block title %} Sign Up {% endblock %}
+
 {% block content %}
     <h1 id="title">Sign Up</h1>
-    <form>
-        <input placeholder="username" type="text" name="username" id="username"><br>
-        <input placeholder="password" type="password" name="password" id="password"><br>
-        <input placeholder="confirm password" type="password" id="confirmpassword"><br>
-        Already made an account? <a href="{{ url_for("login") }}">Log In</a><br><br>
-        <input type="submit" value="Sign Up">
+    <form method="POST">
+        <input placeholder="username" type="text" name="username" id="username" required="required"><br>
+        <input placeholder="first name" type="text" name="firstname" id="firstname" required="required">
+        <input placeholder="last name" type="text" name="lastname" id="lastname" required="required"><br>
+        <input placeholder="password" type="password" name="password" id="password" required="required"><br>
+        <input placeholder="confirm password" type="password" id="confirmpassword" required="required"><br>
+        <input hidden="hidden" type="text" value="{{ request.args.get("next") or "" }}" name="next">
+        <input type="submit" value="Sign Up"><br><br>
+        Already made an account? <a href="{{ url_for("login", next=request.args.get("next")) }}">Log In</a>
     </form>
+    <script src="{{ url_for("static", filename="user_validation.js") }}"></script>
     <script>
+        $("form").submit(function() {
+            {# check if password == confirmpassword, if not, toast a message to try again #}
+            if ($("#password").val() !== $("#confirmpassword").val()) {
+                toast_message("Passwords do not match", "error")
+                return false;
+            }
+
+            {# check if every character in username is allowed #}
+            if (!validate_username($("#username").val())) {
+                return false
+            }
+        })
     </script>
 {% endblock %}

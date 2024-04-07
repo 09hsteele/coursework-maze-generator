@@ -25,3 +25,8 @@ INSERT INTO Mazes (MazeID, Name) VALUES (15, 'Castle');
 INSERT INTO Mazes (MazeID, Name) VALUES (16, 'Triangle');
 INSERT INTO Mazes (MazeID, Name) VALUES (17, 'Square');
 
+
+
+--- USERS ---
+-- (for testing purposes)
+-- TODO: Remove

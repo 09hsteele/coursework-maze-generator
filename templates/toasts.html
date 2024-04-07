@@ -1,21 +1,20 @@
-<div class="toast-container position-fixed end-0 p-3 pt-0">
     {% for category, message in messages %}
         {% if category == 'success' %}
-            <div class="toast border-success toast-success" role="alert">
+            <div class="toast toast-success text-bg-success" role="alert">
                 <span class="toast-body toast-message">
                     {{ message }}
                 </span>
                 <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
             </div>
             {% elif category == 'error' %}
-            <div class="toast border-danger toast-error" role="alert">
+            <div class="toast text-bg-danger toast-error" role="alert">
                 <span class="toast-body toast-message">
                     {{ message }}
                 </span>
                 <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
             </div>
             {% else %}
-            <div class="toast border-primary" role="alert">
+            <div class="toast text-bg-primary" role="alert">
                 <span class="toast-body toast-message">
                     {{ message }}
                 </span>
@@ -23,9 +22,3 @@
             </div>
         {% endif %}
     {% endfor %}
-</div>
-<script>
-    $(document).ready(function() {
-        $(".toast").toast("show");
-    })
-</script>

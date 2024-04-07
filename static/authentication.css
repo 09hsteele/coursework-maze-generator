@@ -3,7 +3,8 @@ form {
     text-align: center;
 }
 input[type=password], input[type=text] {
-    margin:25px;
+    margin-top:25px;
+    margin-bottom:25px;
 }
 
 input::placeholder {
