@@ -9,7 +9,7 @@ class MazeInfo:
     Name: str
 
     def get_shape(self):
-        return Image.open(f"static/maze_{self.MazeID}.png")
+        return Image.open(f"static/mazes/maze_{self.MazeID}.png")
 
 
 @dataclass

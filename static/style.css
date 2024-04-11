@@ -45,12 +45,6 @@
     visibility: visible !important;
 }
 
-#generate-preview {
-    position: absolute;
-    max-width: 100%;
-    height:100%;
-    object-fit: contain;
-}
 
 #toast-templates {
     display: none;

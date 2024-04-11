@@ -55,23 +55,21 @@ def generate_ui():
     return render_template("generate.html", maze=maze)
 
 
-@app.route("/generated_maze.png")
+@app.route("/generated_maze.svg")
 def generate_maze():
     """hosts the image file of a generated maze, so it is available for the browser"""
     shape_id = validation.validate_integer(request.args.get("maze_shape"), 0)
     maze = database.get_maze_from_id(shape_id)
     size = validation.validate_integer(request.args.get("maze_size"), 1)
-    mask = Image.open(f"static/maze_{maze.MazeID}.png").convert("RGB")
+    mask = maze.get_shape().convert("RGB")
     scale = int(math.sqrt((mask.width * mask.height) // size))
     n_rows = mask.height // scale
     n_cols = mask.width // scale  # approximate square cells
-    maze = generator.MazeTemplate(mask, n_rows, n_cols).generate()
+    maze_io = generator.MazeGenerator(mask, n_rows, n_cols).generate()
 
     #  using io object to serve png file, this way it doesn't need to be saved to disk
-    img_io = BytesIO()
-    maze.save(img_io, 'PNG')
-    img_io.seek(0)
-    return send_file(img_io, mimetype="image/png")
+    maze_io.seek(0)
+    return send_file(maze_io, mimetype="image/svg+xml")
 
 
 @app.route('/signup', methods=['GET', 'POST'])

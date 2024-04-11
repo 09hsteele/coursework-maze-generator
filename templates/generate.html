@@ -4,6 +4,13 @@
 
 {% block head %}
     <style>
+        #generate-preview {
+            position: absolute;
+            max-width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
         #generator-columns {
             height: 50vh;
         }
@@ -33,26 +40,30 @@
         <div class="row " id="generator-columns">
             <form class="col-lg-4 col-sm-12" action="javascript:window.print()">
                 {% set maze_start_size = 500 %}
-                <label for="maze-size-slider">Size of the maze: <span id="maze-size-value">{{ maze_start_size }}</span></label><br>
-                <input id="maze-size-slider" type="range" min="100" max="1000" value="{{ maze_start_size }}"
+                <label for="maze-size-slider">Size
+                    {#  of the maze: <span id="maze-size-value">{{ maze_start_size }}</span>#}</label><br>
+                <input id="maze-size-slider" type="range" min="100" max="3000" value="{{ maze_start_size }}"
                        onchange="updatePreview(this);">
                 <br><br>
-                <label for="inlcude-solution-check">Include solution:</label>
-                <input type="checkbox" id="inlcude-solution-check">
-                <br><br>
+                {#                <label for="inlcude-solution-check">Include solution:</label>#}
+                {#                <input type="checkbox" id="inlcude-solution-check">#}
+                {#                <br><br>#}
                 <input type="button" value="Print" onclick="window.print()">
             </form>
             <div class="col-lg-8 col-sm-12 position-relative" id="preview-container">
-                <img id="generate-preview"
-                     src="/generated_maze.png?maze_shape={{ maze.MazeID }}&maze_size={{ maze_start_size }}"
-                     alt="">
-                <div id="preview-updating">Updating...</div>
+                {#                <object id="generate-preview"#}
+                {#                     data="{{ url_for("generate_maze", maze_shape=maze.MazeID, maze_size=maze_start_size) }}"#}
+                {#                     type="image/svg+xml">#}
+                {#                <div id="preview-updating">Updating...</div>#}
+                <img id="generate-preview" type="image/svg+xml"
+                     src="{{ url_for("generate_maze", maze_shape=maze.MazeID, maze_size=maze_start_size) }}"
+                     alt="Maze preview">
             </div>
         </div>
     </div>
     <script>
         function updatePreview(elem) {
-            document.getElementById('maze-size-value').innerText = elem.value;
+            {#$("#maze-size-value").text(elem.value)#}
             let container = $('#preview-container');
             let preview_img = $('#generate-preview');
             let initial_src = preview_img.attr("src");

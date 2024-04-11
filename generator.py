@@ -1,26 +1,78 @@
+import io
+import math
 import random
+from numbers import Number
 
 from PIL import Image  # Importing Pillow (Image Library)
+import cairo
+
+from dataclasses import dataclass
 
 # black is used to indicate an area a maze can be generated in,
 # white is where a maze cannot be generated (i.e. a wall must be put there)
 # pink should be placed on image borders and specifies where start and end points are
 MAZE_CAN_GENERATE_COLOUR = (0, 0, 0)
 ENTRANCES_COLOUR = (255, 0, 255)
+EXITS_COLOUR = (0, 255, 255)
+
+HEAD_SIZE = 0.2
 
 
-class EntranceNotFoundError(Exception):
-    """raised when finding entrances, if an entrance pixel doesn't intersect with
-    any cells in the maze"""
+class MaskError(Exception):
+    """Raised when an error is found in a mask image file"""
 
 
-class EntrancePixelNotOnEdge(Exception):
-    """raised if a pixel specifying an entrance is found not on the edge of the
-    image"""
+@dataclass
+class Vec2D:
+    x: Number
+    y: Number
+
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+
+    def __add__(self, other):
+        if isinstance(other, Vec2D):
+            return self.__class__(x=self.x + other.x, y=self.y + other.y)
+        else:
+            raise ValueError()
+
+    def __sub__(self, other):
+        if isinstance(other, Vec2D):
+            return self.__class__(x=self.x - other.x, y=self.y - other.y)
+
+    def __iter__(self):
+        yield self.x
+        yield self.y
+
+    def __mul__(self, other):
+        if isinstance(other, Number):
+            return Vec2D(x=other * self.x, y=other * self.y)
+        else:
+            raise ValueError
+
+    def __hash__(self):
+        return hash(f"({self.x},{self.y})")
+
+    def get_perpendicular(self):
+        return self.__class__(x=-self.y, y=self.x)
+
+    @classmethod
+    def directions(cls):
+        return tuple(cls(*v) for v in ((0, 1), (1, 0), (0, -1), (-1, 0)))
 
 
-class MazeTemplate:
-    """Represents a maze shape and size before generating"""
+class Cell(Vec2D):
+    """Represents the cell coordinates """
+
+
+class Pixel(Vec2D):
+    pass
+
+
+class MazeGenerator:
+    """Represents a maze before generating
+    call the .generate() method to generate a maze to svg"""
 
     def __init__(self, mask: Image.Image, rows: int, cols: int):
         self.mask = mask
@@ -28,229 +80,170 @@ class MazeTemplate:
         self.cols = cols
 
         self.adjacency_dict = {}  # initailises an empty adjacency dictionary
-        # this will contain (x,y) coords as keys and lists of adjacent (x,y) coords as values
+        for x in range(mask.width):
+            for y in range(mask.height):
+                cur_pixel = Pixel(x, y)
+                if mask.getpixel(tuple(cur_pixel)) == MAZE_CAN_GENERATE_COLOUR:
+                    cur_cell = self.pixel_to_cell(cur_pixel)
+                    self.adjacency_dict[cur_cell] = []
+        for k in self.adjacency_dict.keys():
+            neighbours = [k + v for v in Cell.directions()]
+            for n in neighbours:
+                if n in self.adjacency_dict.keys():
+                    self.adjacency_dict[k].append(n)
+        self.entrances = self.get_entrances()
 
-        #  loop through each cell in the image
-        for y in range(rows):
-            for x in range(cols):
-
-                cur_pixel = self.cell_to_pixel((x, y))
-
-                if mask.getpixel(cur_pixel) == MAZE_CAN_GENERATE_COLOUR:
-                    # current pixel is not WHITE, it is in the maze
-                    # so make an entry for it in adjacency_dict
-                    self.adjacency_dict[(x, y)] = []
-
-                    #  loop through possible neighbours,
-                    #  check if connection is possible due to mask,
-                    #  if it is, add it to list adjacency_dict[cur_pixel]
-                    for neighbour_cell_coords in self.get_possible_adjacents((x, y)):
-                        neighbour_pixel = self.cell_to_pixel(neighbour_cell_coords)
-                        if self.can_connect(cur_pixel, neighbour_pixel):
-                            self.adjacency_dict[(x, y)].append(neighbour_cell_coords)
-
-    def generate(self, seed=None):
+    def generate(self, seed: int = None, colour=(0, 0, 0), pen_width=1):
         if seed is not None:
             random.seed(seed)
 
-        for k in list(self.adjacency_dict):
-            if len(self.adjacency_dict[k]) == 0:
-                self.adjacency_dict.pop(k)
-
-        to_do = [next(iter(self.adjacency_dict.keys()))]
-
-        # to_do list acts as a stack of cells to visit, initially containing an
-        # arbitrary cell from adjacency_dict, as all cells should be connected,
-        # the initial cell is unimportant. By the end of generation, all cells
-        # will be connected.
-
-        maze_image = Image.new("RGB", (self.mask.width + 1, self.mask.height + 1), (255, 255, 255))
+        todo = [next(iter(self.adjacency_dict.keys()))]
+        # choose any arbitary cell in the maze
+        # as all cells will be connected once the algorithm has completed, this
+        # starting cell can be any of the cells in the maze
 
         maze_adj_dict = self.adjacency_dict.copy()
-        # taking this as a copy means that only cells inside the mask shape can
-        # be considered
+        for k in maze_adj_dict:
+            maze_adj_dict[k] = []
 
-        for key in maze_adj_dict.keys():
-            maze_adj_dict[key] = []
-        # populate adjacency dict with empty lists
+        visited = set()
 
-        visited = set()  # the set of points (as (x, y) tuples) that have already
-        # been visited by the algorithm
-
-        while len(to_do) > 0:
-            current = to_do[0]
-            visited.add(current)
-
-            unvisited_neighbours = [n for n in self.adjacency_dict[current]
+        while len(todo) > 0:
+            current_cell = todo[0]
+            visited.add(current_cell)
+            unvisited_neighbours = [n for n in self.adjacency_dict[current_cell]
                                     if n not in visited]
-            if len(unvisited_neighbours) == 0:  # no unvisited neighbours
-                # cell is completely explored
-                to_do.pop(0)  # remove from stack
+
+            if len(unvisited_neighbours) == 0:
+                todo.pop(0)
             else:
                 neighbour = random.choice(unvisited_neighbours)
-                # choose a random neighbour and continue traversal
 
-                maze_adj_dict[current].append(neighbour)
-                maze_adj_dict[neighbour].append(current)
-                #  if A is connected to B, B must also be connected to A (undirected)
+                maze_adj_dict[current_cell].append(neighbour)
+                maze_adj_dict[neighbour].append(current_cell)
 
-                to_do.insert(0, neighbour)  # push new cell to stack
+                todo.insert(0, neighbour)
 
-        entrances = self.get_entrances()
-
-        for cell, neighbours in maze_adj_dict.items():
-            theoretical_neighbours = get_theoretical_adjacents(cell)
-            for n in theoretical_neighbours:
-                if n not in maze_adj_dict[cell] and entrances.get(cell, None) != n:
-                    self.draw_wall(cell, n, maze_image)
-        return maze_image
-
-    def draw_wall(self, start_cell, end_cell, image: Image.Image, colour=(0, 0, 0)):
+        maze_io = io.BytesIO()
+        scale = math.sqrt(595 * 843 / ((self.mask.height + 3) * (self.mask.width + 3)))
         cell_height = self.mask.height / self.rows
         cell_width = self.mask.width / self.cols
+        with cairo.SVGSurface(maze_io, scale * (cell_height + self.mask.width + 3),
+                              scale * (cell_width + self.mask.height + 3)) as maze_surface:
+            context = cairo.Context(maze_surface)
+            context.scale(scale, scale)
+            context.translate(cell_width/2, cell_height/2)
+            context.set_line_width(pen_width / scale)
+            context.set_source_rgb(*colour)
+            context.set_line_cap(cairo.LINE_CAP_ROUND)
+            context.set_line_join(cairo.LINE_JOIN_ROUND)
 
-        if start_cell[0] == end_cell[0]:  # cells lie on same horizontal line
-            cell_x = start_cell[0]
-            y = int((cell_height * (start_cell[1] + end_cell[1] + 1)) // 2)
-            for x in range(int(cell_x * cell_width), int((cell_x + 1) * cell_width)):
-                image.putpixel((x, y), colour)
+            for cell, neighbours in maze_adj_dict.items():
+                theoretical_neighbours = [cell + v for v in Cell.directions()]
+                for n in theoretical_neighbours:
+                    if self.entrances.get(cell, None) == n:
+                        self.draw_arrow(cell, n - cell, context)
+                    elif self.entrances.get(n, None) == cell:
+                        self.draw_arrow(n, cell - n, context)
 
-        elif start_cell[1] == end_cell[1]:  # cells lie on same vertical line
-            cell_y = start_cell[1]
-            x = int((cell_width * (start_cell[0] + end_cell[0] + 1)) // 2)
-            for y in range(int(cell_y * cell_height), int((cell_y + 1) * cell_height)):
-                image.putpixel((x, y), colour)
+                    elif n not in neighbours and self.entrances.get(cell, None) != n:
+                        self.draw_wall(cell, n, context)
+        return maze_io
 
-        else:
-            return ValueError(f"cells {start_cell} and {end_cell} are not adjacent")
+    def draw_arrow(self, cell: Cell, direction: Vec2D, context: cairo.Context):
+        if direction not in direction.__class__.directions():
+            raise ValueError("direction is not a valid cardinal direction")
+        context.move_to(*self.cell_to_pixel(cell))
+        context.line_to(*self.cell_to_pixel(cell + direction))
+        perp = direction.get_perpendicular()
+        arrow_head_left = (perp + direction * 4) * 0.2
+        arrow_head_right = (direction * 4 - perp) * 0.2
+        print(self.cell_to_pixel(cell))
+        context.line_to(*self.cell_to_pixel(cell + arrow_head_left))
+        context.move_to(*self.cell_to_pixel(cell + direction))
+        context.line_to(*self.cell_to_pixel(cell + arrow_head_right))
 
-    def cell_to_pixel(self, cell_coords: tuple[int, int]) -> tuple[int, int]:
-        """Finds the pixel coordinates for a given cell coordinate
-        :returns: (pixel_x, pixel_y) tuple """
+        context.stroke()
+        print(cell)
 
-        cell_width = self.mask.width / self.cols
-        cell_height = self.mask.height / self.rows
+    def draw_wall(self, start_cell: Cell, end_cell: Cell, context: cairo.Context):
+        start_centre = self.cell_to_pixel(start_cell)
+        end_centre = self.cell_to_pixel(end_cell)
+        start_to_end = end_centre - start_centre
+        wall_vec = start_to_end.get_perpendicular()
+        start = start_centre + (start_to_end - wall_vec) * 0.5
+        end = start_centre + (start_to_end + wall_vec) * 0.5
 
-        (x, y) = cell_coords
+        # context.scale(self.mask.width, self.mask.height)
 
-        # adding 0.5 to shift from top-left corner to centre of cell
-        pixel_x = int((x + 0.5) * cell_width)
-        pixel_y = int((y + 0.5) * cell_height)
+        context.move_to(*(start + Pixel(1, 1)))
+        context.line_to(*(end + Pixel(1, 1)))
 
-        return pixel_x, pixel_y
+        context.stroke()
 
-    def can_connect(self, pixel_a: tuple[int, int], pixel_b: tuple[int, int]) -> bool:
-        """decides whether two image points pixel_a and pixel_b can be connected
-        according to the image mask"""
-        # Currently only works when points share an x or y coordinate
-
-        if pixel_a[0] == pixel_b[0]:  # both pixels lie on the same vertical line
-            # loops through the smallest y coordinate to the largest y coordinate
-            for y in range(min(pixel_a[1], pixel_b[1]), max(pixel_a[1], pixel_b[1]) + 1):
-                if self.mask.getpixel((pixel_a[0], y)) != MAZE_CAN_GENERATE_COLOUR:
-                    return False
-
-        elif pixel_a[1] == pixel_b[1]:  # both pixels lie on the same horizontal line
-            # loops through the smallest x coordinate to the largest x coordinate
-            for x in range(min(pixel_a[0], pixel_b[0]), max(pixel_a[0], pixel_b[0]) + 1):
-                if self.mask.getpixel((x, pixel_b[1])) != MAZE_CAN_GENERATE_COLOUR:
-                    return False
-        else:
-            raise NotImplementedError()
-
-        return True  # no white pixels found, so points must be connected
-
-    # def debug_connect(self, pixel_a, pixel_b):
-    #     if pixel_a[0] == pixel_b[0]:  # both pixels lie on the same vertical line
-    #         # loops through the smallest y coordinate to the largest y coordinate
-    #         for y in range(min(pixel_a[1], pixel_b[1]), max(pixel_a[1], pixel_b[1])):
-    #             self.mask.putpixel((pixel_a[0], y), (255, 0, 255))
-    #
-    #     elif pixel_a[1] == pixel_b[1]:  # both pixels lie on the same horizontal line
-    #         # loops through the smallest x coordinate to the largest x coordinate
-    #         for x in range(min(pixel_a[0], pixel_b[0]), max(pixel_a[0], pixel_b[0])):
-    #             self.mask.putpixel((x, pixel_b[1]), (255, 0, 255))
-    #     else:
-    #         raise NotImplementedError()
-
-    def get_possible_adjacents(self, cell_coords: tuple[int, int]) -> list[tuple[int, int]]:
-        """Deals with boundary cases of x and y being at edges/corners of cell grid
-        :param cell_coords: the (x,y) tuple cell coordinates of the cell to consider
-        :return: a list of (x,y) tuples representing cell coordinates of neighbours"""
-        return [(x, y) for (x, y) in get_theoretical_adjacents(cell_coords) if
-                0 <= x < self.cols and 0 <= y < self.rows]
-        # filters theoretical adjacents, only keeping those in the image
-
-    def get_entrances(self) -> dict[tuple[int, int], tuple[int, int]]:
-        """finds a list of connections that walls should not be drawn at as these
-        are the start/end points of the maze
-        :returns: a dictionary with (x, y) tuple keys, and (x, y) tuple values,
-        the connection between key cells and value cells should be open to act
-        as an entrance"""
+    def get_entrances(self) -> dict[Cell, Cell]:
         entrances = {}
-        for i, colour in enumerate(self.mask.getdata()):
-            if colour == ENTRANCES_COLOUR:
-                (pixel_y, pixel_x) = divmod(i, self.mask.width)
-                cell_x, cell_y = ((pixel_x * self.cols) // self.mask.width,
-                                  (pixel_y * self.rows) // self.mask.height)
-                if pixel_y == 0:  # entrance is on top of maze
-                    while (cell_x, cell_y) not in self.adjacency_dict:
-                        cell_y += 1
-                        if cell_y >= self.rows:
-                            #  could not find cell in line with entrance
-                            raise EntranceNotFoundError(f"pixel ({pixel_x}, {pixel_y})"
-                                                        "did not produce a valid entrance")
-                    entrances[(cell_x, cell_y)] = (cell_x, cell_y - 1)
-                elif pixel_x == 0:  # entrance is on left side of maze
-                    while (cell_x, cell_y) not in self.adjacency_dict:
-                        cell_x += 1
-                        if cell_x >= self.cols:
-                            #  could not find cell in line with entrance
-                            raise EntranceNotFoundError(f"pixel ({pixel_x}, {pixel_y})"
-                                                        "did not produce a valid entrance")
-                    entrances[(cell_x, cell_y)] = (cell_x - 1, cell_y)
-                elif pixel_y == self.mask.height - 1:  # entrance is on bottom of maze
-                    while (cell_x, cell_y) not in self.adjacency_dict:
-                        cell_y -= 1
-                        if cell_y < 0:
-                            #  could not find cell in line with entrance
-                            raise EntranceNotFoundError(f"pixel ({pixel_x}, {pixel_y})"
-                                                        "did not produce a valid entrance")
-                    entrances[(cell_x, cell_y)] = (cell_x, cell_y + 1)
-                elif pixel_x == self.mask.width - 1:  # entrance is to right of maze
-                    while (cell_x, cell_y) not in self.adjacency_dict:
-                        cell_x -= 1
-                        if cell_x < 0:
-                            #  could not find cell in line with entrance
-                            raise EntranceNotFoundError(f"pixel ({pixel_x}, {pixel_y})"
-                                                        "did not produce a valid entrance")
-                    entrances[(cell_x, cell_y)] = (cell_x + 1, cell_y)
+        for i, col in enumerate(self.mask.getdata()):
+            if col == ENTRANCES_COLOUR or col == EXITS_COLOUR:
+                pixel = Pixel(*reversed(divmod(i, self.mask.width)))
+                if pixel.y == 0:  # entrance is on top of maze
+                    v = Cell(0, 1)
+                elif pixel.x == 0:  # entrance is to left of maze
+                    v = Cell(1, 0)
+                elif pixel.y == self.mask.height - 1:  # entrance is below maze
+                    v = Cell(0, -1)
+                elif pixel.x == self.mask.width - 1:  # entrance is to right of maze
+                    v = Cell(-1, 0)
                 else:
-                    raise EntrancePixelNotOnEdge(f"pixel ({pixel_x}, {pixel_y}) not on edge")
+                    raise MaskError("Entrance found not on border of image")
+
+                cell = None
+                while self.is_pixel_in_image(pixel):
+                    if self.pixel_to_cell(pixel) in self.adjacency_dict.keys():
+                        cell = self.pixel_to_cell(pixel)
+                        break
+                    pixel += v
+
+                if cell is None:
+                    raise MaskError("Entrance did not produce a valid cell")
+
+                if col == ENTRANCES_COLOUR:
+                    entrances[cell - v] = cell
+                if col == EXITS_COLOUR:
+                    entrances[cell] = cell - v
+        print(entrances)
         return entrances
 
+    def cell_to_pixel(self, cell: Cell) -> Pixel:
+        (x, y) = cell
+        new_x = ((x+0.5) * self.mask.width) / self.cols
+        new_y = ((y+0.5) * self.mask.height) / self.rows
 
-def get_theoretical_adjacents(cell_coords: tuple[int, int]) -> list[tuple[int, int]]:
-    """finds adjacent cells (including those with coordinates outside the image)
-    :returns: a list of (x, y) tuples representing cell coordinates of neighbours"""
-    (x, y) = cell_coords
-    return [
-        (x + 1, y),  # right
-        (x - 1, y),  # left
-        (x, y + 1),  # below
-        (x, y - 1)  # above
-    ]
+        return Pixel(x=new_x, y=new_y)
+
+    def pixel_to_cell(self, pixel: Pixel) -> Cell:
+        return Cell((pixel.x * self.cols) // self.mask.width,
+                    (pixel.y * self.rows) // self.mask.height)
+
+    def is_pixel_in_image(self, pixel: Pixel) -> bool:
+        if min(pixel) < 0:
+            return False
+        if pixel.x > self.mask.width - 1:
+            return False
+        if pixel.y > self.mask.height - 1:
+            return False
+        return True
 
 
 if __name__ == "__main__":
-    dino_mask = Image.open("static/maze_3.png").convert("RGB")
-    number_rows = 50  # arbitrary number chosen to test generation
+    dino_mask = Image.open("static/maze_0.png").convert("RGB")
+    number_rows = 25  # arbitrary number chosen to test generation
 
     # approximates square cells by making the ratio of rows to columns equal to
     # the ratio of width to height of image (approximated to the nearest integer)
     number_cols = (number_rows * dino_mask.width) // dino_mask.height
 
-    maze_template = MazeTemplate(dino_mask, number_rows, number_cols)
+    maze_template = MazeGenerator(dino_mask, number_rows, number_cols)
     m = maze_template.generate()
-    m.show()
-    m.save("output.png")
+    with open("s.svg", "wb") as f:
+        f.write(m.getbuffer())
