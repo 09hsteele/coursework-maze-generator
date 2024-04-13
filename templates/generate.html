@@ -54,7 +54,7 @@
                 {#                <object id="generate-preview"#}
                 {#                     data="{{ url_for("generate_maze", maze_shape=maze.MazeID, maze_size=maze_start_size) }}"#}
                 {#                     type="image/svg+xml">#}
-                {#                <div id="preview-updating">Updating...</div>#}
+                                <div id="preview-updating">Updating...</div>
                 <img id="generate-preview" type="image/svg+xml"
                      src="{{ url_for("generate_maze", maze_shape=maze.MazeID, maze_size=maze_start_size) }}"
                      alt="Maze preview">
@@ -69,11 +69,11 @@
             let initial_src = preview_img.attr("src");
             let new_src = initial_src.replace(/maze_size=\d+($|\D)/, `maze_size=${elem.value}$1`);
             {#.replace(/seed=[\d.]*($|\D)/, `seed=${Math.random()}$1`)#}
-            {#container.addClass('updating');#}
+            container.addClass('updating');
             preview_img.attr("src", new_src)
-            {#    .on("load", function () {#}
-            {#        container.removeClass('updating');#}
-            {#    })#}
+                .on("load", function () {
+                    container.removeClass('updating');
+                })
 
         }
     </script>

@@ -3,6 +3,23 @@ from dataclasses import dataclass
 import sqlite3
 
 
+class UserAlreadyExistsError(Exception):
+    """raised when trying to add a user to the database with a username that
+    already exists"""
+
+
+class AuthenticationError(Exception):
+    """raised when attempting to log in with an incorrect password"""
+
+
+class UserNotFoundError(Exception):
+    """raised when trying to log in with a username that can't be found"""
+
+
+class MazeNotFoundError(Exception):
+    """raised when trying to access info about a maze that cannot be found in the database"""
+
+
 @dataclass
 class MazeInfo:
     MazeID: int
@@ -20,19 +37,6 @@ class UserInfo:
     last_name: str
 
 
-class UserAlreadyExistsError(Exception):
-    """raised when trying to add a user to the database with a username that
-    already exists"""
-
-
-class AuthenticationError(Exception):
-    """raised when attempting to log in with an incorrect password"""
-
-
-class UserNotFoundError(Exception):
-    """raised when trying to log in with a username that can't be found"""
-
-
 class Database:
     def __init__(self, file_path: str):
         self.connection = sqlite3.connect(file_path, check_same_thread=False)
@@ -40,9 +44,13 @@ class Database:
     def get_maze_from_id(self, maze_id):
         c = self.connection.cursor()
         c.execute("SELECT MazeID, Name FROM Mazes WHERE MazeID = (?);", (maze_id,))
-        info = MazeInfo(*c.fetchone())
-        c.close()
-        return info
+        try:
+            info = MazeInfo(*c.fetchone())
+            return info
+        except TypeError:
+            raise MazeNotFoundError()
+        finally:
+            c.close()
 
     def get_all_mazes(self):
         c = self.connection.cursor()

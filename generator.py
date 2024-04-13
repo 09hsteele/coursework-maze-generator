@@ -63,11 +63,11 @@ class Vec2D:
 
 
 class Cell(Vec2D):
-    """Represents the cell coordinates """
+    """Represents the coordinates of a cell"""
 
 
 class Pixel(Vec2D):
-    pass
+    """Represents the coordinates of a pixel in the maze mask"""
 
 
 class MazeGenerator:
@@ -93,14 +93,14 @@ class MazeGenerator:
                     self.adjacency_dict[k].append(n)
         self.entrances = self.get_entrances()
 
-    def generate(self, seed: int = None, colour=(0, 0, 0), pen_width=1):
+    def generate(self, seed: int = None, colour=(0, 0, 0), pen_width=0.1):
         if seed is not None:
             random.seed(seed)
 
-        todo = [next(iter(self.adjacency_dict.keys()))]
         # choose any arbitary cell in the maze
         # as all cells will be connected once the algorithm has completed, this
         # starting cell can be any of the cells in the maze
+        todo = [next(iter(self.adjacency_dict.keys()))]
 
         maze_adj_dict = self.adjacency_dict.copy()
         for k in maze_adj_dict:
@@ -125,15 +125,12 @@ class MazeGenerator:
                 todo.insert(0, neighbour)
 
         maze_io = io.BytesIO()
-        scale = math.sqrt(595 * 843 / ((self.mask.height + 3) * (self.mask.width + 3)))
-        cell_height = self.mask.height / self.rows
-        cell_width = self.mask.width / self.cols
-        with cairo.SVGSurface(maze_io, scale * (cell_height + self.mask.width + 3),
-                              scale * (cell_width + self.mask.height + 3)) as maze_surface:
+        scale = 10
+        with cairo.SVGSurface(maze_io, scale * (self.cols + 2), scale * (self.rows + 2)) as maze_surface:
             context = cairo.Context(maze_surface)
             context.scale(scale, scale)
-            context.translate(cell_width/2, cell_height/2)
-            context.set_line_width(pen_width / scale)
+            context.translate(1, 1)
+            context.set_line_width(pen_width)
             context.set_source_rgb(*colour)
             context.set_line_cap(cairo.LINE_CAP_ROUND)
             context.set_line_join(cairo.LINE_JOIN_ROUND)
@@ -141,45 +138,51 @@ class MazeGenerator:
             for cell, neighbours in maze_adj_dict.items():
                 theoretical_neighbours = [cell + v for v in Cell.directions()]
                 for n in theoretical_neighbours:
-                    if self.entrances.get(cell, None) == n:
-                        self.draw_arrow(cell, n - cell, context)
-                    elif self.entrances.get(n, None) == cell:
-                        self.draw_arrow(n, cell - n, context)
-
+                    if self.entrances.get(cell, None) == n or self.entrances.get(n, None) == cell:
+                        continue
                     elif n not in neighbours and self.entrances.get(cell, None) != n:
                         self.draw_wall(cell, n, context)
+            context.stroke()
+            for cell, neighbour in self.entrances.items():
+                print(cell, neighbour)
+                self.draw_arrow(cell, neighbour - cell, context)
+                context.stroke()
         return maze_io
 
-    def draw_arrow(self, cell: Cell, direction: Vec2D, context: cairo.Context):
+    @staticmethod
+    def draw_arrow(cell: Cell, direction: Vec2D, context: cairo.Context, colour=(255, 0, 0)):
         if direction not in direction.__class__.directions():
             raise ValueError("direction is not a valid cardinal direction")
-        context.move_to(*self.cell_to_pixel(cell))
-        context.line_to(*self.cell_to_pixel(cell + direction))
+        context.move_to(*cell)
+        context.line_to(*(cell + direction))
         perp = direction.get_perpendicular()
         arrow_head_left = (perp + direction * 4) * 0.2
         arrow_head_right = (direction * 4 - perp) * 0.2
-        print(self.cell_to_pixel(cell))
-        context.line_to(*self.cell_to_pixel(cell + arrow_head_left))
-        context.move_to(*self.cell_to_pixel(cell + direction))
-        context.line_to(*self.cell_to_pixel(cell + arrow_head_right))
+        context.line_to(*(cell + arrow_head_right))
+        context.move_to(*(cell + direction))
+        context.line_to(*(cell + arrow_head_left))
+
+        orig_source = None
+        if colour is not None:
+            orig_source = context.get_source()
+            context.set_source_rgb(*colour)
 
         context.stroke()
+
+        if orig_source is not None:
+            context.set_source(orig_source)
+
         print(cell)
 
-    def draw_wall(self, start_cell: Cell, end_cell: Cell, context: cairo.Context):
-        start_centre = self.cell_to_pixel(start_cell)
-        end_centre = self.cell_to_pixel(end_cell)
-        start_to_end = end_centre - start_centre
+    @staticmethod
+    def draw_wall(start_cell: Cell, end_cell: Cell, context: cairo.Context):
+        start_to_end = end_cell - start_cell
         wall_vec = start_to_end.get_perpendicular()
-        start = start_centre + (start_to_end - wall_vec) * 0.5
-        end = start_centre + (start_to_end + wall_vec) * 0.5
+        start = start_cell + (start_to_end - wall_vec) * 0.5
+        end = start_cell + (start_to_end + wall_vec) * 0.5
 
-        # context.scale(self.mask.width, self.mask.height)
-
-        context.move_to(*(start + Pixel(1, 1)))
-        context.line_to(*(end + Pixel(1, 1)))
-
-        context.stroke()
+        context.move_to(*start)
+        context.line_to(*end)
 
     def get_entrances(self) -> dict[Cell, Cell]:
         entrances = {}
@@ -216,8 +219,8 @@ class MazeGenerator:
 
     def cell_to_pixel(self, cell: Cell) -> Pixel:
         (x, y) = cell
-        new_x = ((x+0.5) * self.mask.width) / self.cols
-        new_y = ((y+0.5) * self.mask.height) / self.rows
+        new_x = ((x + 0.5) * self.mask.width) / self.cols
+        new_y = ((y + 0.5) * self.mask.height) / self.rows
 
         return Pixel(x=new_x, y=new_y)
 

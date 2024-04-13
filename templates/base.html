@@ -29,7 +29,7 @@
     })
 
     function toast_message(message, category) {
-        $("#toast-templates > .toast").each(function() {
+        $("#toast-templates > .toast").each(function () {
             let e = $(this);
             console.log(e);
             console.log(category);
@@ -60,7 +60,8 @@
             </ul>
             <ul class="navbar-nav d-flex">
                 {% if current_user.is_authenticated %}
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for("settings") }}"> {{ current_user.info.username }} <i
+                    <li class="nav-item"><a class="nav-link"
+                                            href="{{ url_for("settings") }}"> {{ current_user.info.username }} <i
                             class="bi bi-person-circle"></i> </a></li>
                     <li class="nav-item"><a class="nav-link" href="{{ url_for("logout") }}">Log Out</a></li>
                 {% else %}
@@ -73,8 +74,8 @@
     </div>
 </nav>
 
-{# a seperate copy of the possible types of toast messages,
-used to create toasts client-side in js #}
+{#a seperate copy of the possible types of toast messages,#}
+{#used to create toasts client-side in js#}
 <div id="toast-templates">
     {% with messages = [('success', 'success'), ('error','error'), ('', '')] %}
         {% include 'toasts.html' %}
@@ -82,11 +83,11 @@ used to create toasts client-side in js #}
 </div>
 
 <div class="toast-container position-fixed end-0 p-3 pt-0">
-{% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-        {% include 'toasts.html' %}
-    {% endif %}
-{% endwith %}
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% include 'toasts.html' %}
+        {% endif %}
+    {% endwith %}
 </div>
 
 <div id="content" class="container">

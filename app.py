@@ -8,11 +8,59 @@ from flask_login import LoginManager, current_user, login_user, UserMixin, login
 
 import generator
 import db
-import validation
 
 app = Flask(__name__)
 database = db.Database("database.db")
 login = LoginManager(app)
+
+
+class ExternalURLNotAllowedError(Exception):
+    """raised when trying to redirect to an external url - bad security >:("""
+
+
+class CharacterNotAllowedError(Exception):
+    """raised when a character is found in user input that is not allowed to be there"""
+
+
+def validate_username(username: str) -> str:
+    allowed_chars = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ._-'
+    print(username)
+    for char in username:
+        if char not in allowed_chars:
+            raise CharacterNotAllowedError(f"Found unauthorised character '{char}' in username '{username}'")
+    return username
+
+
+def validate_integer(i: str, min_value: int = None, max_value: int = None) -> int:
+    """
+    :param i: the number (as a string) to validate
+    :param min_value: the smallest acceptable value of i, can be None (no limit)
+    :param max_value: the largest acceptable value of i, can be None (no limit)
+    :returns: int(i) if i is an integer between given parameters (inclusive),
+        otherwise raises a ValueError
+    :raises: ValueError if i cannot be parsed or is not between the parameters
+    """
+    try:
+        i = int(i)
+    except TypeError as e:
+        raise TypeError("i must be a string") from e
+    except ValueError as e:
+        raise ValueError(f"Could not parse '{i}' as an integer")
+    if min_value is not None:
+        if i < min_value:
+            raise ValueError("Value was lower than the minimum")
+    if max_value is not None:
+        if i > max_value:
+            raise ValueError("Value was higher than the maximum")
+    return i
+
+
+def validate_next(url: str) -> str | None:
+    if not url:
+        return None
+    if url[0] == '/':
+        return url
+    raise ExternalURLNotAllowedError(f"External URL '{url}' not allowed", url)
 
 
 def hash_password(password: str) -> bytes:
@@ -45,12 +93,10 @@ def index():
 def generate_ui():
     """The 'generate' page, provides the user with a UI to generate mazes"""
     try:
-        shape_id = validation.validate_integer(request.args.get("maze_shape"), 0)
+        shape_id = validate_integer(request.args.get("maze_shape"), 0)
         maze = database.get_maze_from_id(shape_id)
-    except Exception as e:
-        print(e)
-        # TODO: Better error pages
-        return abort(400)
+    except db.MazeNotFoundError:
+        return render_template("404_not_found.html", )
     print(maze)
     return render_template("generate.html", maze=maze)
 
@@ -58,18 +104,21 @@ def generate_ui():
 @app.route("/generated_maze.svg")
 def generate_maze():
     """hosts the image file of a generated maze, so it is available for the browser"""
-    shape_id = validation.validate_integer(request.args.get("maze_shape"), 0)
-    maze = database.get_maze_from_id(shape_id)
-    size = validation.validate_integer(request.args.get("maze_size"), 1)
-    mask = maze.get_shape().convert("RGB")
-    scale = int(math.sqrt((mask.width * mask.height) // size))
-    n_rows = mask.height // scale
-    n_cols = mask.width // scale  # approximate square cells
-    maze_io = generator.MazeGenerator(mask, n_rows, n_cols).generate()
+    try:
+        shape_id = validate_integer(request.args.get("maze_shape"), 0)
+        maze = database.get_maze_from_id(shape_id)
+        size = validate_integer(request.args.get("maze_size"), 1)
+        mask = maze.get_shape().convert("RGB")
+        scale = int(math.sqrt((mask.width * mask.height) // size))
+        n_rows = mask.height // scale
+        n_cols = mask.width // scale  # approximate square cells
+        maze_io = generator.MazeGenerator(mask, n_rows, n_cols).generate()
 
-    #  using io object to serve png file, this way it doesn't need to be saved to disk
-    maze_io.seek(0)
-    return send_file(maze_io, mimetype="image/svg+xml")
+        #  using io object to serve png file, this way it doesn't need to be saved to disk
+        maze_io.seek(0)
+        return send_file(maze_io, mimetype="image/svg+xml")
+    except db.MazeNotFoundError:
+        return render_template("404_not_found.html"), 404
 
 
 @app.route('/signup', methods=['GET', 'POST'])
@@ -83,7 +132,7 @@ def signup():
         _next = request.args.get("next")
         try:
             username = request.form.get("username")
-            validation.validate_username(username)
+            validate_username(username)
 
             password = request.form.get("password")
             firstname = request.form.get("firstname")
@@ -95,7 +144,7 @@ def signup():
 
             database.add_user(user_info, hashed_password)
             flash(f"Successfully created account for '{username}'", 'success')
-        except validation.CharacterNotAllowedError:
+        except CharacterNotAllowedError:
             flash("Username can only contain letters, numbers, "
                   "full stops, hyphens and underscores", 'error')
             return redirect(url_for("signup", next=_next), 303)
@@ -117,8 +166,8 @@ def login():
 
         _next = None
         try:
-            _next = validation.validate_next(request.form.get("next"))
-        except validation.ExternalURLNotAllowedError as e:
+            _next = validate_next(request.form.get("next"))
+        except ExternalURLNotAllowedError as e:
             flash(f"denied attempt to redirect to '{e.args[1]}'", "info")
 
         try:
@@ -139,7 +188,7 @@ def login():
             return redirect(_next or url_for("index"), 303)
 
 
-@app.route('/settings', methods=["GET", "POST", "DELETE"])
+@app.route('/settings', methods=["GET", "POST"])
 @login_required
 def settings():
     if request.method == "GET":
@@ -148,8 +197,8 @@ def settings():
     elif request.method == "POST":
         if request.form.get("username"):
             try:
-                validation.validate_username("username")
-            except validation.CharacterNotAllowedError as e:
+                validate_username("username")
+            except CharacterNotAllowedError as e:
                 flash(str(e), "error")
                 return redirect(url_for("settings"))
         try:

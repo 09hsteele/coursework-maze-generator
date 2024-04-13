@@ -7,7 +7,7 @@
             <div class="row row-cols-auto">
                 {% for maze in mazes %}
                     <a href="{{ url_for("generate_ui") }}?maze_shape={{maze.MazeID}}" class="col maze-list-item btn btn-light">
-                        <img src="/static/mazes/maze_{{maze.MazeID}}.png" draggable="false">
+                        <img src="{{ url_for("static", filename="mazes/maze_%d.png"%maze.MazeID) }}" draggable="false">
                         <div>{{maze.Name}}</div>
                     </a>
                 {% endfor %}
