@@ -31,8 +31,6 @@
     function toast_message(message, category) {
         $("#toast-templates > .toast").each(function () {
             let e = $(this);
-            console.log(e);
-            console.log(category);
             if (e.children(".toast-body").text().includes(category)) {
                 let new_toast = e.clone();
                 new_toast.children(".toast-message").html(message);
@@ -77,7 +75,7 @@
 {#a seperate copy of the possible types of toast messages,#}
 {#used to create toasts client-side in js#}
 <div id="toast-templates">
-    {% with messages = [('success', 'success'), ('error','error'), ('', '')] %}
+    {% with messages = [('success', 'success'), ('error','error'), ('info', 'info')] %}
         {% include 'toasts.html' %}
     {% endwith %}
 </div>

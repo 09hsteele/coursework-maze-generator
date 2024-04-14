@@ -63,7 +63,7 @@ class Vec2D:
 
 
 class Cell(Vec2D):
-    """Represents the coordinates of a cell"""
+    """Represents the logical coordinates of a cell in the maze grid"""
 
 
 class Pixel(Vec2D):
@@ -79,19 +79,26 @@ class MazeGenerator:
         self.rows = rows
         self.cols = cols
 
+        self.entrances = {}
+        entrance_pixels = []  # list to keep track of entrances, these can
+        # only be found once the whole adjacency dict has been created
+
         self.adjacency_dict = {}  # initailises an empty adjacency dictionary
         for x in range(mask.width):
             for y in range(mask.height):
                 cur_pixel = Pixel(x, y)
-                if mask.getpixel(tuple(cur_pixel)) == MAZE_CAN_GENERATE_COLOUR:
+                col = mask.getpixel(tuple(cur_pixel))
+                if col == MAZE_CAN_GENERATE_COLOUR:
                     cur_cell = self.pixel_to_cell(cur_pixel)
                     self.adjacency_dict[cur_cell] = []
+                elif col == ENTRANCES_COLOUR or col == EXITS_COLOUR:
+                    entrance_pixels.append(cur_pixel)
         for k in self.adjacency_dict.keys():
             neighbours = [k + v for v in Cell.directions()]
             for n in neighbours:
                 if n in self.adjacency_dict.keys():
                     self.adjacency_dict[k].append(n)
-        self.entrances = self.get_entrances()
+        self.find_entrances(entrance_pixels)
 
     def generate(self, seed: int = None, colour=(0, 0, 0), pen_width=0.1):
         if seed is not None:
@@ -172,8 +179,6 @@ class MazeGenerator:
         if orig_source is not None:
             context.set_source(orig_source)
 
-        print(cell)
-
     @staticmethod
     def draw_wall(start_cell: Cell, end_cell: Cell, context: cairo.Context):
         start_to_end = end_cell - start_cell
@@ -184,11 +189,10 @@ class MazeGenerator:
         context.move_to(*start)
         context.line_to(*end)
 
-    def get_entrances(self) -> dict[Cell, Cell]:
-        entrances = {}
-        for i, col in enumerate(self.mask.getdata()):
+    def find_entrances(self, entrance_pixels: list[Pixel]):
+        for pixel in entrance_pixels:
+            col = self.mask.getpixel(tuple(pixel))
             if col == ENTRANCES_COLOUR or col == EXITS_COLOUR:
-                pixel = Pixel(*reversed(divmod(i, self.mask.width)))
                 if pixel.y == 0:  # entrance is on top of maze
                     v = Cell(0, 1)
                 elif pixel.x == 0:  # entrance is to left of maze
@@ -200,22 +204,16 @@ class MazeGenerator:
                 else:
                     raise MaskError("Entrance found not on border of image")
 
-                cell = None
-                while self.is_pixel_in_image(pixel):
-                    if self.pixel_to_cell(pixel) in self.adjacency_dict.keys():
-                        cell = self.pixel_to_cell(pixel)
+                cell = self.pixel_to_cell(pixel)
+                while 0 <= cell.x < self.cols and 0 <= cell.y < self.rows:
+                    if cell in self.adjacency_dict.keys():
                         break
-                    pixel += v
-
-                if cell is None:
-                    raise MaskError("Entrance did not produce a valid cell")
+                    cell += v
 
                 if col == ENTRANCES_COLOUR:
-                    entrances[cell - v] = cell
+                    self.entrances[cell - v] = cell
                 if col == EXITS_COLOUR:
-                    entrances[cell] = cell - v
-        print(entrances)
-        return entrances
+                    self.entrances[cell] = cell - v
 
     def cell_to_pixel(self, cell: Cell) -> Pixel:
         (x, y) = cell

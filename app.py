@@ -96,7 +96,7 @@ def generate_ui():
         shape_id = validate_integer(request.args.get("maze_shape"), 0)
         maze = database.get_maze_from_id(shape_id)
     except db.MazeNotFoundError:
-        return render_template("404_not_found.html", )
+        return render_template("errors/404_not_found.html", )
     print(maze)
     return render_template("generate.html", maze=maze)
 
@@ -118,7 +118,7 @@ def generate_maze():
         maze_io.seek(0)
         return send_file(maze_io, mimetype="image/svg+xml")
     except db.MazeNotFoundError:
-        return render_template("404_not_found.html"), 404
+        return render_template("errors/404_not_found.html"), 404
 
 
 @app.route('/signup', methods=['GET', 'POST'])
@@ -213,6 +213,7 @@ def settings():
 
 
 @app.route("/changepassword", methods=["POST"])
+@login_required
 def update_password():
     current_password = request.form.get("current_password")
     new_password = request.form.get("new_password")
@@ -227,6 +228,7 @@ def update_password():
 
 
 @app.route("/deleteaccount", methods=["POST"])
+@login_required
 def delete_account():
     password = request.form.get("password")
     if not password:
@@ -251,14 +253,19 @@ def logout():
     return redirect(url_for('login'), 303)
 
 
+@app.errorhandler(401)
+def unauthorised_access(_):
+    return render_template("errors/401_unauthorised.html")
+
+
 @app.errorhandler(404)
 def page_not_found(_):
-    return render_template("404_not_found.html")
+    return render_template("errors/404_not_found.html")
 
 
-@app.errorhandler(401)
-def page_not_found(_):
-    return render_template("401_unauthorised.html")
+@app.errorhandler(405)
+def method_not_allowed(_):
+    return render_template("errors/405_method_not_allowed.html")
 
 
 @app.route('/favicon.ico')
