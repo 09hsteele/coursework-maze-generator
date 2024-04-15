@@ -19,11 +19,9 @@ INSERT INTO Mazes (MazeID, Name) VALUES (9, 'Elephant');
 INSERT INTO Mazes (MazeID, Name) VALUES (10, 'Giraffe');
 INSERT INTO Mazes (MazeID, Name) VALUES (11, 'Whale');
 INSERT INTO Mazes (MazeID, Name) VALUES (12, 'Snail');
-INSERT INTO Mazes (MazeID, Name) VALUES (13, 'Eiffel Tower');
-INSERT INTO Mazes (MazeID, Name) VALUES (14, 'Sydney Opera House');
-INSERT INTO Mazes (MazeID, Name) VALUES (15, 'Castle');
-INSERT INTO Mazes (MazeID, Name) VALUES (16, 'Triangle');
-INSERT INTO Mazes (MazeID, Name) VALUES (17, 'Square');
+INSERT INTO Mazes (MazeID, Name) VALUES (13, 'Sydney Opera House');
+INSERT INTO Mazes (MazeID, Name) VALUES (14, 'Triangle');
+INSERT INTO Mazes (MazeID, Name) VALUES (15, 'Square');
 
 
 

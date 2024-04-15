@@ -1,9 +1,10 @@
 import io
 import math
 import random
+import sys
 from numbers import Number
 
-from PIL import Image  # Importing Pillow (Image Library)
+from PIL import Image, ImageDraw  # Importing Pillow (Image Library)
 import cairo
 
 from dataclasses import dataclass
@@ -12,14 +13,71 @@ from dataclasses import dataclass
 # white is where a maze cannot be generated (i.e. a wall must be put there)
 # pink should be placed on image borders and specifies where start and end points are
 MAZE_CAN_GENERATE_COLOUR = (0, 0, 0)
+MAZE_CANNOT_GENERATE_COLOUR = (255, 255, 255)
 ENTRANCES_COLOUR = (255, 0, 255)
 EXITS_COLOUR = (0, 255, 255)
+MAX_MASK_SIZE = 20_000  # masks over 20KB are not allowed (for performance)
 
 HEAD_SIZE = 0.2
 
 
 class MaskError(Exception):
     """Raised when an error is found in a mask image file"""
+
+
+def validate_mask(mask: Image.Image):
+    newmask = mask.copy()
+    # flags of things that we need to check
+    entrance_found = False
+    exit_found = False
+    found_pixels = []
+    no_isolated_pixels = False
+
+    for i, col in enumerate(mask.getdata()):
+        (y, x) = divmod(i, mask.width)
+        if col == ENTRANCES_COLOUR:
+            if entrance_found:
+                raise MaskError(f"Found more than pixel of colour {ENTRANCES_COLOUR}")
+            if is_entrance_valid(x, y, mask):
+                entrance_found = True
+        elif col == EXITS_COLOUR:
+            if exit_found:
+                raise MaskError(f"Found more than pixel of colour {EXITS_COLOUR}")
+            if is_entrance_valid(x, y, mask):
+                exit_found = True
+        elif newmask.getpixel((x,y)) == MAZE_CAN_GENERATE_COLOUR:
+            if not no_isolated_pixels:
+                ImageDraw.floodfill(newmask, (x, y), MAZE_CAN_GENERATE_COLOUR, MAZE_CANNOT_GENERATE_COLOUR)
+            else:
+                raise MaskError(f"found disconnected part of maze at {(x, y)}")
+        elif col != MAZE_CANNOT_GENERATE_COLOUR:
+            raise MaskError(f"found pixel with colour {col} at {(x, y)}")
+    if not entrance_found:
+        raise MaskError(f"Could not find a pixel with colour {ENTRANCES_COLOUR}")
+    if not exit_found:
+        raise MaskError(f"Could not find a pixel with colour {EXITS_COLOUR}")
+    if no_isolated_pixels:
+        raise MaskError(f"Found no {MAZE_CAN_GENERATE_COLOUR} colour pixels")
+    return True
+
+
+def is_entrance_valid(x: int, y: int, mask: Image.Image):
+    p = Pixel(x, y)
+    if y == 0:
+        v = Pixel(0, 1)
+    elif y == mask.height - 1:
+        v = Pixel(0, -1)
+    elif x == 0:
+        v = Pixel(1, 0)
+    elif x == mask.width - 1:
+        v = Pixel(-1, 0)
+    else:
+        raise MaskError(f"entrance/exit pixel found at {(x, y)}")
+    while 0 <= p.x < mask.width and 0 <= p.y < mask.height:
+        if mask.getpixel(tuple(p)) == MAZE_CAN_GENERATE_COLOUR:
+            return True
+        p += v
+    raise MaskError(f"entrance/exit pixel at {(x, y)} did not intersect with maze")
 
 
 @dataclass
@@ -75,6 +133,14 @@ class MazeGenerator:
     call the .generate() method to generate a maze to svg"""
 
     def __init__(self, mask: Image.Image, rows: int, cols: int):
+        """
+        Create a MazeGenerator object
+        :param mask: The mask to use.
+            It should be entirely black and white with one magenta and one aqua
+            pixel on the border to indicate the entrance and exit
+        :param rows: the number of cells vertically
+        :param cols: the number of cells horizontally
+        """
         self.mask = mask
         self.rows = rows
         self.cols = cols
@@ -109,8 +175,8 @@ class MazeGenerator:
         # starting cell can be any of the cells in the maze
         todo = [next(iter(self.adjacency_dict.keys()))]
 
-        maze_adj_dict = self.adjacency_dict.copy()
-        for k in maze_adj_dict:
+        maze_adj_dict = {}
+        for k in self.adjacency_dict.keys():
             maze_adj_dict[k] = []
 
         visited = set()
@@ -132,7 +198,7 @@ class MazeGenerator:
                 todo.insert(0, neighbour)
 
         maze_io = io.BytesIO()
-        scale = 10
+        scale = 10  # the width/height of each cell
         with cairo.SVGSurface(maze_io, scale * (self.cols + 2), scale * (self.rows + 2)) as maze_surface:
             context = cairo.Context(maze_surface)
             context.scale(scale, scale)
@@ -150,37 +216,42 @@ class MazeGenerator:
                     elif n not in neighbours and self.entrances.get(cell, None) != n:
                         self.draw_wall(cell, n, context)
             context.stroke()
+            context.set_source_rgb(255, 0, 0)
             for cell, neighbour in self.entrances.items():
-                print(cell, neighbour)
                 self.draw_arrow(cell, neighbour - cell, context)
                 context.stroke()
         return maze_io
 
     @staticmethod
-    def draw_arrow(cell: Cell, direction: Vec2D, context: cairo.Context, colour=(255, 0, 0)):
+    def draw_arrow(cell: Cell, direction: Vec2D, context: cairo.Context):
+        """
+        draws an arrow in the specified direction between the specified cell and its adjacent
+        :param cell: The cell to start the arrow at
+        :param direction: The direction to draw the arrow
+        :param context: The cairo context to draw the arrow on
+        """
         if direction not in direction.__class__.directions():
             raise ValueError("direction is not a valid cardinal direction")
-        context.move_to(*cell)
-        context.line_to(*(cell + direction))
         perp = direction.get_perpendicular()
         arrow_head_left = (perp + direction * 4) * 0.2
         arrow_head_right = (direction * 4 - perp) * 0.2
+
+        context.move_to(*cell)
+        context.line_to(*(cell + direction))
         context.line_to(*(cell + arrow_head_right))
         context.move_to(*(cell + direction))
         context.line_to(*(cell + arrow_head_left))
 
-        orig_source = None
-        if colour is not None:
-            orig_source = context.get_source()
-            context.set_source_rgb(*colour)
-
         context.stroke()
-
-        if orig_source is not None:
-            context.set_source(orig_source)
 
     @staticmethod
     def draw_wall(start_cell: Cell, end_cell: Cell, context: cairo.Context):
+        """
+        draws the wall between the two specified cells on the given context
+        :param start_cell: The first cell to draw the wall between
+        :param end_cell: The second cell to draw the wall between
+        :param context:  The cairo context to draw the wall on
+        """
         start_to_end = end_cell - start_cell
         wall_vec = start_to_end.get_perpendicular()
         start = start_cell + (start_to_end - wall_vec) * 0.5

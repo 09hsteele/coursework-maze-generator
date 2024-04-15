@@ -1,8 +1,11 @@
+import io
 import math
+import os
 from io import BytesIO
+from mimetypes import guess_type
 
 from hashlib import sha256
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
 from flask import *
 from flask_login import LoginManager, current_user, login_user, UserMixin, login_required, logout_user
 
@@ -10,7 +13,7 @@ import generator
 import db
 
 app = Flask(__name__)
-database = db.Database("database.db")
+database = db.Database("database.db", False)
 login = LoginManager(app)
 
 
@@ -96,8 +99,7 @@ def generate_ui():
         shape_id = validate_integer(request.args.get("maze_shape"), 0)
         maze = database.get_maze_from_id(shape_id)
     except db.MazeNotFoundError:
-        return render_template("errors/404_not_found.html", )
-    print(maze)
+        abort(404)
     return render_template("generate.html", maze=maze)
 
 
@@ -118,7 +120,7 @@ def generate_maze():
         maze_io.seek(0)
         return send_file(maze_io, mimetype="image/svg+xml")
     except db.MazeNotFoundError:
-        return render_template("errors/404_not_found.html"), 404
+        abort(404)
 
 
 @app.route('/signup', methods=['GET', 'POST'])
@@ -243,6 +245,48 @@ def delete_account():
     except db.AuthenticationError:
         flash("Incorrect password", "error")
         return redirect(url_for("settings"))
+
+
+@app.route("/uploadmaze", methods=["GET", "POST"])
+@login_required
+def upload_maze():
+    if request.method == "GET":
+        return render_template("upload_mask.html")
+    elif request.method == "POST":
+        f = request.files.get("file") or None
+        if f is None:
+            flash("Please upload an image", "error")
+            return redirect(url_for('upload_maze'))
+        name = request.form.get("name")
+        if name is None:
+            flash("Please enter a name for the maze", "error")
+            return redirect(url_for("upload_maze"))
+        public = True if request.form.get("public") else False
+        f.seek(0, os.SEEK_END)
+        size = f.tell()
+        f.seek(0)
+        try:
+            if size > generator.MAX_MASK_SIZE:
+                flash(f"Mask too big ({size} bytes)")
+                return redirect(url_for("upload_maze"))
+            mask = Image.open(f).convert("RGB")
+            generator.validate_mask(mask)
+            database.add_new_maze(mask, name, public)
+
+        except UnidentifiedImageError:
+            if guess_type(f.filename)[0] != "image/png":
+                flash(f"{guess_type(f.filename)[0]} not supported, please upload "
+                      f"a png file", "error")
+            else:
+                flash("There was an unexpected problem with the file you uploaded", "error")
+            return redirect(url_for('upload_maze'))
+        except generator.MaskError as e:
+            flash(str(e), "error")
+            return redirect(url_for('upload_maze'))
+        finally:
+            f.close()
+
+        return redirect(url_for("upload_maze"))
 
 
 @app.route('/logout')

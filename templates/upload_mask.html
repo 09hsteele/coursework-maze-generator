@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% block content %}
+    <h1>Create a maze shape</h1>
+    <p>
+        Maze shapes in this project are stored as png files, with black pixels in
+        the shape of the maze.
+    </p>
+    <div class="col-4">
+        <form method="POST" enctype="multipart/form-data">
+            <input name="name" type="text" id="name" placeholder="Maze Name" required>
+{#            <label for="public_checkbox">Public: </label>#}
+{#            <input id="public_checkbox" name="public" type="checkbox"><br><br>#}
+            <input id="file_input" type="file" name="file" accept=".png" required>
+            <img id="file_preview" src="" alt="">
+            <input id="upload_button" type="submit" value="Upload" disabled>
+        </form>
+    </div>
+
+    <script>
+        $("#file_input").on("input", () => {
+            let files = $("#file_input").prop("files");
+            let new_src = '';
+            if (files.length !== 0) {
+                new_src = URL.createObjectURL(files[0]);
+                $("#upload_button").removeAttr("disabled");
+            } else {
+                $("#upload_button").attr("disabled", "");
+            }
+            $("#file_preview").attr("src", new_src);
+        })
+    </script>
+{% endblock %}
+
+{% block head %}
+    <style>
+        #file_preview {
+            max-width: 100%;
+        }
+    </style>
+{% endblock %}

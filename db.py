@@ -1,6 +1,11 @@
+import os
+import pathlib
+
 from PIL import Image
 from dataclasses import dataclass
 import sqlite3
+
+from generator import validate_mask, MAX_MASK_SIZE, MaskError
 
 
 class UserAlreadyExistsError(Exception):
@@ -25,8 +30,11 @@ class MazeInfo:
     MazeID: int
     Name: str
 
+    def get_shape_path(self):
+        return pathlib.Path(f"static/mazes/maze_{self.MazeID}.png")
+
     def get_shape(self):
-        return Image.open(f"static/mazes/maze_{self.MazeID}.png")
+        return Image.open(self.get_shape_path()).convert("RGB")
 
 
 @dataclass
@@ -38,8 +46,35 @@ class UserInfo:
 
 
 class Database:
-    def __init__(self, file_path: str):
+    def __init__(self, file_path: str, check_integrity: bool = False):
         self.connection = sqlite3.connect(file_path, check_same_thread=False)
+        if check_integrity:
+            self.check_mask_integrity()
+
+    def check_mask_integrity(self) -> None:
+        """
+        checks if all masks that are stored in the database actually exit in storage
+        and are all valid maze masks. i.e. they follow the following rules:
+         - they only include these colours: (#FFFFFF, #000000, #FF00FF, #00FFFF)
+         - there is only one isolated group of black pixels
+         - all entrance/exit pixels are on the border of the image
+
+        :raises: generator.MaskError or FileNotFoundError if it finds a problem
+        """
+        for maze in self.get_all_mazes():
+            try:
+                mask = maze.get_shape()
+            except FileNotFoundError as e:
+                raise FileNotFoundError(f"Maze number {maze.MazeID} not found") from e
+            try:
+                if (size := os.stat(maze.get_shape_path()).st_size) > MAX_MASK_SIZE:
+                    raise MaskError(f"File too big ({size})")
+                validate_mask(mask)
+                print(f"{maze.MazeID} good :)")
+            except Exception as e:
+                print(f"{maze.MazeID} bad >:(")
+                print(repr(e))
+        print("database maze check completed")
 
     def get_maze_from_id(self, maze_id):
         c = self.connection.cursor()
@@ -59,22 +94,31 @@ class Database:
         c.close()
         return mazes
 
+    def add_new_maze(self, mask: Image.Image, name: str, public=False):
+        c = self.connection.cursor()
+        c.execute("""BEGIN TRANSACTION;""")
+        c.execute("""INSERT INTO Mazes (Name) VALUES ((?));""", (name,))
+        info = MazeInfo(c.lastrowid, name)
+        mask.save(info.get_shape_path())
+        c.execute("""COMMIT;""")
+        c.close()
+
     def add_user(self, user_info: UserInfo, password_hash: bytes):
+        c = self.connection.cursor()
         try:
-            c = self.connection.cursor()
             c.execute("""INSERT INTO Users (Username, FirstName, LastName, PasswordHash)
                       VALUES ((?), (?), (?), (?));""",
                       (user_info.username, user_info.first_name, user_info.last_name,
                        password_hash))
         except sqlite3.IntegrityError as e:
-            raise UserAlreadyExistsError(f"User with username '{user_info.username}' already exists")
+            raise UserAlreadyExistsError(f"User with username '{user_info.username}' already exists") from e
         finally:
             c.close()
             self.connection.commit()
 
     def get_user_from_username(self, username: str):
+        c = self.connection.cursor()
         try:
-            c = self.connection.cursor()
             c.execute("""SELECT UserID, Username, FirstName, LastName FROM Users
                       WHERE Username = (?);""", (username,))
             return UserInfo(*c.fetchone())
@@ -86,8 +130,8 @@ class Database:
     def authenticate_user(self, username: str, password_hash: bytes):
         """raises an error if username or password are wrong
         otherwise returns the UserID of the user trying to log in"""
+        c = self.connection.cursor()
         try:
-            c = self.connection.cursor()
             c.execute("""SELECT PasswordHash, UserID FROM Users WHERE Username = (?);""",
                       (username,))
             password_attempt, user_id = c.fetchone()
@@ -126,7 +170,7 @@ class Database:
             c.execute("COMMIT;")
         except sqlite3.IntegrityError as e:
             c.execute("ROLLBACK;")
-            raise UserAlreadyExistsError(f"User with username '{new_username}' already exists")
+            raise UserAlreadyExistsError(f"User with username '{new_username}' already exists") from e
         finally:
             c.close()
 
