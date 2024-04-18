@@ -1,16 +1,73 @@
 {% extends "base.html" %}
 {% set this_page = "Generate" %}
 {% block content %}
-        <h1>Generate a Maze</h1>
-        <p>Choose one of the shapes below to generate a maze</p>
-        <div class="container-fluid">
+    <h1>Generate a Maze</h1>
+    <p>Choose one of the shapes below to generate a maze</p>
+    <div class="container-fluid">
+        {% if current_user.is_authenticated %}
+            <h3>My Mazes</h3><br>
             <div class="row row-cols-auto">
-                {% for maze in mazes %}
-                    <a href="{{ url_for("generate_ui") }}?maze_shape={{maze.MazeID}}" class="col maze-list-item btn btn-light">
-                        <img src="{{ url_for("static", filename="mazes/maze_%d.png"%maze.MazeID) }}" draggable="false">
-                        <div>{{maze.Name}}</div>
-                    </a>
-                {% endfor %}
+                {% if private_mazes %}
+                    {% for maze in private_mazes %}
+                        <a href="{{ url_for("generate_ui") }}?maze_shape={{ maze.MazeID }}"
+                           class="col maze_list_item btn btn-light">
+                            <img src="{{ url_for("static", filename="mazes/maze_%d.png"%maze.MazeID) }}"
+                                 draggable="false">
+                            <div class="maze_name">{{ maze.Name }}</div>
+                            <div class="public">{% if maze.Public %} public {% else %} private {% endif %}</div>
+                            <form action="{{ url_for('delete_maze') }}" method="POST">
+                                <input type="text" hidden value="{{ maze.MazeID }}" name="maze_id">
+                                <button type="submit" class="delete_maze bg-danger"><i class="bi bi-trash"></i></button>
+                            </form>
+                        </a>
+                    {% endfor %}
+                {% else %}
+                    <p>Looks like you haven't created any mazes, go to <a href="{{ url_for('upload_maze') }}">Upload</a>
+                        to upload one</p>
+                {% endif %}
             </div>
+        {% endif %}
+        <h3>Public Mazes</h3>
+        <div class="row row-cols-auto">
+            {% for maze in public_mazes %}
+                <a href="{{ url_for("generate_ui") }}?maze_shape={{ maze.MazeID }}"
+                   class="col maze_list_item btn btn-light">
+                    <img src="{{ url_for("static", filename="mazes/maze_%d.png"%maze.MazeID) }}" draggable="false">
+                    <div class="maze_name">{{ maze.Name }}</div>
+                    {#                    {% if maze.Creator.user_id != 0 %}#}
+                    <div class="maze_creator"> created by: <span class="username">{{ maze.Creator.username }}</span>
+                    </div>
+                    {#                    {% endif %}#}
+                </a>
+            {% endfor %}
         </div>
+    </div>
+{% endblock %}
+
+{% block head %}
+    <style>
+        .maze_list_item {
+            width: 300px;
+            height: 300px;
+            margin: 10px;
+            position: relative;
+        }
+
+        .maze_list_item > img {
+            max-width: 200px;
+            max-height: 200px;
+        }
+
+        .maze_name {
+            font-weight: bold;
+        }
+
+        .maze_creator {
+            font-size: smaller;
+        }
+
+        .username {
+            font-style: italic;
+        }
+    </style>
 {% endblock %}

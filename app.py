@@ -7,7 +7,8 @@ from mimetypes import guess_type
 from hashlib import sha256
 from PIL import Image, UnidentifiedImageError
 from flask import *
-from flask_login import LoginManager, current_user, login_user, UserMixin, login_required, logout_user
+from flask_login import LoginManager, current_user, login_user, UserMixin, login_required, logout_user, \
+    AnonymousUserMixin
 
 import generator
 import db
@@ -76,6 +77,15 @@ class User(UserMixin):
         self.info = database.get_user(user_id)
 
 
+class AnonymousUser(AnonymousUserMixin):
+    def __init__(self):
+        self.id = None
+        self.info = db.UserInfo(-1, None, None, None)
+
+
+login.anonymous_user = AnonymousUser
+
+
 @login.user_loader
 def get_user(user_id):
     return User(user_id)
@@ -83,7 +93,14 @@ def get_user(user_id):
 
 @app.route('/maze_shapes')
 def maze_list():
-    return render_template("shape_list.html", username="", mazes=database.get_all_mazes())
+    if current_user.is_authenticated:
+        return render_template(
+            "shape_list.html",
+            public_mazes=database.get_public_mazes(),
+            private_mazes=database.get_private_mazes(current_user.info)
+        )
+    else:
+        return render_template("shape_list.html", public_mazes=database.get_public_mazes())
 
 
 @app.route("/")
@@ -98,9 +115,21 @@ def generate_ui():
     try:
         shape_id = validate_integer(request.args.get("maze_shape"), 0)
         maze = database.get_maze_from_id(shape_id)
+        if maze.Public:
+            return render_template("generate.html", maze=maze)
+        elif current_user.is_authenticated:
+            if maze.Creator == current_user.info:
+                return render_template("generate.html", maze=maze)
+            else:
+                flash("You do not own this maze", "error")
+                return redirect(url_for("maze_list"))
+        else:
+            abort(401)
     except db.MazeNotFoundError:
         abort(404)
-    return render_template("generate.html", maze=maze)
+    except TypeError:
+        abort(400)
+    abort(500)
 
 
 @app.route("/generated_maze.svg")
@@ -121,6 +150,8 @@ def generate_maze():
         return send_file(maze_io, mimetype="image/svg+xml")
     except db.MazeNotFoundError:
         abort(404)
+    except ValueError:
+        abort(400)
 
 
 @app.route('/signup', methods=['GET', 'POST'])
@@ -208,6 +239,7 @@ def settings():
                                  request.form.get("username"),
                                  request.form.get("firstname"),
                                  request.form.get("lastname"))
+            flash("Successfully updated info", "success")
             return redirect(url_for("settings"))
         except db.UserAlreadyExistsError as e:
             flash(str(e), 'error')
@@ -265,14 +297,13 @@ def upload_maze():
         f.seek(0, os.SEEK_END)
         size = f.tell()
         f.seek(0)
-        try:
-            if size > generator.MAX_MASK_SIZE:
-                flash(f"Mask too big ({size} bytes)")
-                return redirect(url_for("upload_maze"))
-            mask = Image.open(f).convert("RGB")
-            generator.validate_mask(mask)
-            database.add_new_maze(mask, name, public)
+        if size > generator.MAX_MASK_SIZE:
+            flash(f"Mask too big ({size} bytes)", "error")
+            return redirect(url_for("upload_maze"))
 
+        uploaded = False
+        try:
+            mask = Image.open(f).convert("RGB")
         except UnidentifiedImageError:
             if guess_type(f.filename)[0] != "image/png":
                 flash(f"{guess_type(f.filename)[0]} not supported, please upload "
@@ -280,13 +311,38 @@ def upload_maze():
             else:
                 flash("There was an unexpected problem with the file you uploaded", "error")
             return redirect(url_for('upload_maze'))
-        except generator.MaskError as e:
-            flash(str(e), "error")
-            return redirect(url_for('upload_maze'))
-        finally:
-            f.close()
 
-        return redirect(url_for("upload_maze"))
+        while not uploaded:
+            try:
+                generator.validate_mask(mask)
+                maze_info = database.add_new_maze(mask, name, current_user.info, public)
+                flash(f"Maze '{name}' successfully uploaded", "success")
+                uploaded = True
+                return redirect(url_for("generate_ui", maze_shape=maze_info.MazeID))
+
+            except generator.NoEntrancesError:
+                mask.putpixel((0, mask.height // 2), generator.ENTRANCES_COLOUR)
+                mask.putpixel((mask.width - 1, mask.height // 2), generator.EXITS_COLOUR)
+            except generator.MaskError as e:
+                flash(str(e), "error")
+                return redirect(url_for('upload_maze'))
+
+
+@app.route("/deletemaze", methods=["POST"])
+@login_required
+def delete_maze():
+    maze_id = int(request.form.get("maze_id"))
+    try:
+        maze = database.get_maze_from_id(maze_id)
+        if maze.Creator != current_user.info:
+            flash("You cannot delete this maze as you didn't create it", "error")
+            return redirect(url_for("maze_list"))
+        database.delete_maze(maze)
+    except db.MazeNotFoundError:
+        flash("The maze could not be found in the database", "error")
+        return redirect(url_for("maze_list"))
+    flash(f"Maze '{maze.Name}' successfully deleted", "success")
+    return redirect(url_for("maze_list"))
 
 
 @app.route('/logout')
@@ -298,18 +354,13 @@ def logout():
 
 
 @app.errorhandler(401)
-def unauthorised_access(_):
-    return render_template("errors/401_unauthorised.html")
+def login_required_page(_):
+    return render_template("401_unauthorised.html")
 
 
-@app.errorhandler(404)
-def page_not_found(_):
-    return render_template("errors/404_not_found.html")
-
-
-@app.errorhandler(405)
-def method_not_allowed(_):
-    return render_template("errors/405_method_not_allowed.html")
+@app.errorhandler(Exception)
+def error_page(e):
+    return render_template("error.html", error=e)
 
 
 @app.route('/favicon.ico')
@@ -320,5 +371,4 @@ def favicon():
 if __name__ == '__main__':
     app.secret_key = 'ZouzwDJ7wPt1ldyFaxM57l322f6Wc5X57GhnA0eMvD'
     # randomly generated alphanumeric characters
-
     app.run(debug=True, host="0.0.0.0")

@@ -18,19 +18,21 @@ ENTRANCES_COLOUR = (255, 0, 255)
 EXITS_COLOUR = (0, 255, 255)
 MAX_MASK_SIZE = 20_000  # masks over 20KB are not allowed (for performance)
 
-HEAD_SIZE = 0.2
-
 
 class MaskError(Exception):
     """Raised when an error is found in a mask image file"""
 
 
+class NoEntrancesError(MaskError):
+    """Raised when given a mask with no entrances"""
+
+
 def validate_mask(mask: Image.Image):
-    newmask = mask.copy()
+    new_mask = mask.copy()  # create a copy of the maze for checking for blocks of pixels
+
     # flags of things that we need to check
     entrance_found = False
     exit_found = False
-    found_pixels = []
     no_isolated_pixels = False
 
     for i, col in enumerate(mask.getdata()):
@@ -45,13 +47,18 @@ def validate_mask(mask: Image.Image):
                 raise MaskError(f"Found more than pixel of colour {EXITS_COLOUR}")
             if is_entrance_valid(x, y, mask):
                 exit_found = True
-        elif newmask.getpixel((x,y)) == MAZE_CAN_GENERATE_COLOUR:
+        elif new_mask.getpixel((x, y)) == MAZE_CAN_GENERATE_COLOUR:
             if not no_isolated_pixels:
-                ImageDraw.floodfill(newmask, (x, y), MAZE_CAN_GENERATE_COLOUR, MAZE_CANNOT_GENERATE_COLOUR)
+                # Fill the connected black pixels with white. If we later find more black pixels, they must be
+                # disconnected
+                ImageDraw.floodfill(new_mask, (x, y), MAZE_CAN_GENERATE_COLOUR, MAZE_CANNOT_GENERATE_COLOUR)
             else:
                 raise MaskError(f"found disconnected part of maze at {(x, y)}")
         elif col != MAZE_CANNOT_GENERATE_COLOUR:
+            #  pixel is not one of the allowed colours
             raise MaskError(f"found pixel with colour {col} at {(x, y)}")
+    if not entrance_found and not exit_found:
+        raise NoEntrancesError("Mask has no entrances")
     if not entrance_found:
         raise MaskError(f"Could not find a pixel with colour {ENTRANCES_COLOUR}")
     if not exit_found:
@@ -72,7 +79,7 @@ def is_entrance_valid(x: int, y: int, mask: Image.Image):
     elif x == mask.width - 1:
         v = Pixel(-1, 0)
     else:
-        raise MaskError(f"entrance/exit pixel found at {(x, y)}")
+        raise MaskError(f"entrance/exit pixel found at {(x, y)}, not on edge")
     while 0 <= p.x < mask.width and 0 <= p.y < mask.height:
         if mask.getpixel(tuple(p)) == MAZE_CAN_GENERATE_COLOUR:
             return True

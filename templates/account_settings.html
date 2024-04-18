@@ -21,8 +21,8 @@
         <h3>Change Password</h3>
         <form action="{{ url_for("update_password") }}" class="change_password_form" method="POST">
             <input name="current_password" type="password" placeholder="Old Password" required><br>
-            <input name="new_password" type="password" placeholder="New Password" required>
-            <input type="password" placeholder="Confirm New Password" required> <br><br>
+            <input id="new_password" name="new_password" type="password" placeholder="New Password" required>
+            <input id="confirm_password" type="password" placeholder="Confirm New Password" required> <br><br>
             <input type="submit" value="Change Password">
         </form>
     </div>
@@ -59,6 +59,12 @@
             }
             if ($("#lastname").val() === "{{ current_user.info.last_name }}") {
                 $("#lastname").attr("disabled", "disabled")
+            }
+        })
+        $(".change_password_form").on("submit", ()=> {
+            if ($("#new_password").val() !== $("#confirm_password").val()) {
+                toast_message("Passwords do not match", "error")
+                return false;
             }
         })
     </script>

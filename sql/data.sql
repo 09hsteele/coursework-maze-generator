@@ -1,30 +1,25 @@
--- INSERT INTO Categories (CategoryID, Name, Description) VALUES (0, 'Animals', '-');
--- INSERT INTO Categories (CategoryID, Name, Description) VALUES (1, 'Dinosaurs', '-');
--- INSERT INTO Categories (CategoryID, Name, Description) VALUES (2, 'Places', '-');
--- INSERT INTO Categories (CategoryID, Name, Description) VALUES (3, 'Shapes', '-');
--- INSERT INTO Categories (CategoryID, Name, Description) VALUES (4, 'Mammals', '-');
--- INSERT INTO Categories (CategoryID, Name, Description) VALUES (5, 'Birds', '-');
--- INSERT INTO Categories (CategoryID, Name, Description) VALUES (6, 'Sea Animals', '-');
-
-INSERT INTO Mazes (MazeID, Name) VALUES (0, 'Triceratops');
-INSERT INTO Mazes (MazeID, Name) VALUES (1, 'Fish');
-INSERT INTO Mazes (MazeID, Name) VALUES (2, 'Rabbit');
-INSERT INTO Mazes (MazeID, Name) VALUES (3, 'Wolf');
-INSERT INTO Mazes (MazeID, Name) VALUES (4, 'Dog');
-INSERT INTO Mazes (MazeID, Name) VALUES (5, 'Cat');
-INSERT INTO Mazes (MazeID, Name) VALUES (6, 'Crab');
-INSERT INTO Mazes (MazeID, Name) VALUES (7, 'Puffin');
-INSERT INTO Mazes (MazeID, Name) VALUES (8, 'Seagull');
-INSERT INTO Mazes (MazeID, Name) VALUES (9, 'Elephant');
-INSERT INTO Mazes (MazeID, Name) VALUES (10, 'Giraffe');
-INSERT INTO Mazes (MazeID, Name) VALUES (11, 'Whale');
-INSERT INTO Mazes (MazeID, Name) VALUES (12, 'Snail');
-INSERT INTO Mazes (MazeID, Name) VALUES (13, 'Sydney Opera House');
-INSERT INTO Mazes (MazeID, Name) VALUES (14, 'Triangle');
-INSERT INTO Mazes (MazeID, Name) VALUES (15, 'Square');
-
-
 
 --- USERS ---
--- (for testing purposes)
--- TODO: Remove
+INSERT INTO Users (UserID, Username, FirstName, LastName, PasswordHash) VALUES (0, 'admin', 'a','m', X'0d6be69b264717f2dd33652e212b173104b4a647b7c11ae72e9885f11cd312fb');
+-- password = passwd TODO: Change this
+--
+--
+--
+-- --- MAZES ---
+-- INSERT INTO Mazes (MazeID, Name, Public, CreatorID) VALUES (0, 'Triceratops', 1, 0);
+-- INSERT INTO Mazes (MazeID, Name, Public, CreatorID) VALUES (1, 'Fish', 1, 0);
+-- INSERT INTO Mazes (MazeID, Name, Public, CreatorID) VALUES (2, 'Rabbit', 1, 0);
+-- INSERT INTO Mazes (MazeID, Name, Public, CreatorID) VALUES (3, 'Wolf', 1, 0);
+-- INSERT INTO Mazes (MazeID, Name, Public, CreatorID) VALUES (4, 'Dog', 1, 0);
+-- INSERT INTO Mazes (MazeID, Name, Public, CreatorID) VALUES (5, 'Cat', 1, 0);
+-- INSERT INTO Mazes (MazeID, Name, Public, CreatorID) VALUES (6, 'Crab', 1, 0);
+-- INSERT INTO Mazes (MazeID, Name, Public, CreatorID) VALUES (7, 'Puffin', 1, 0);
+-- INSERT INTO Mazes (MazeID, Name, Public, CreatorID) VALUES (8, 'Seagull', 1, 0);
+-- INSERT INTO Mazes (MazeID, Name, Public, CreatorID) VALUES (9, 'Elephant', 1, 0);
+-- INSERT INTO Mazes (MazeID, Name, Public, CreatorID) VALUES (10, 'Giraffe', 1, 0);
+-- INSERT INTO Mazes (MazeID, Name, Public, CreatorID) VALUES (11, 'Whale', 1, 0);
+-- INSERT INTO Mazes (MazeID, Name, Public, CreatorID) VALUES (12, 'Snail', 1, 0);
+-- INSERT INTO Mazes (MazeID, Name, Public, CreatorID) VALUES (13, 'Sydney Opera House', 1, 0);
+-- INSERT INTO Mazes (MazeID, Name, Public, CreatorID) VALUES (14, 'Triangle', 1, 0);
+-- INSERT INTO Mazes (MazeID, Name, Public, CreatorID) VALUES (15, 'Square', 1, 0);
+

@@ -26,9 +26,19 @@ class MazeNotFoundError(Exception):
 
 
 @dataclass
+class UserInfo:
+    user_id: int
+    username: str
+    first_name: str
+    last_name: str
+
+
+@dataclass
 class MazeInfo:
     MazeID: int
-    Name: str
+    Name: str = None
+    Creator: UserInfo = None
+    Public: bool = None
 
     def get_shape_path(self):
         return pathlib.Path(f"static/mazes/maze_{self.MazeID}.png")
@@ -37,19 +47,15 @@ class MazeInfo:
         return Image.open(self.get_shape_path()).convert("RGB")
 
 
-@dataclass
-class UserInfo:
-    user_id: int
-    username: str
-    first_name: str
-    last_name: str
-
-
 class Database:
     def __init__(self, file_path: str, check_integrity: bool = False):
         self.connection = sqlite3.connect(file_path, check_same_thread=False)
+        self.connection.execute("PRAGMA foreign_keys = ON;")
         if check_integrity:
             self.check_mask_integrity()
+
+    def __del__(self):
+        self.connection.close()
 
     def check_mask_integrity(self) -> None:
         """
@@ -61,7 +67,7 @@ class Database:
 
         :raises: generator.MaskError or FileNotFoundError if it finds a problem
         """
-        for maze in self.get_all_mazes():
+        for maze in self.get_public_mazes():
             try:
                 mask = maze.get_shape()
             except FileNotFoundError as e:
@@ -76,32 +82,53 @@ class Database:
                 print(repr(e))
         print("database maze check completed")
 
-    def get_maze_from_id(self, maze_id):
-        c = self.connection.cursor()
-        c.execute("SELECT MazeID, Name FROM Mazes WHERE MazeID = (?);", (maze_id,))
+    def get_maze_from_id(self, maze_id: int) -> MazeInfo:
+        c = self.connection.execute("SELECT Name, CreatorID, Public FROM Mazes WHERE MazeID = (?);", (maze_id,))
         try:
-            info = MazeInfo(*c.fetchone())
+            name, creator_id, public = c.fetchone()
+            info = MazeInfo(maze_id, name, self.get_user(creator_id), public)
             return info
         except TypeError:
             raise MazeNotFoundError()
         finally:
-            c.close()
+            self.connection.commit()
 
-    def get_all_mazes(self):
+    def get_public_mazes(self) -> list[MazeInfo]:
         c = self.connection.cursor()
-        c.execute("SELECT MazeID, Name FROM Mazes;")
-        mazes = [MazeInfo(MazeID, Name) for (MazeID, Name) in c.fetchall()]
+        c.execute("SELECT MazeID, Name, CreatorID FROM Mazes WHERE Public=1 ORDER BY Name;")
+        mazes = [MazeInfo(MazeID, Name, self.get_user(CreatorID), True) for (MazeID, Name, CreatorID) in c.fetchall()]
         c.close()
+        self.connection.commit()
         return mazes
 
-    def add_new_maze(self, mask: Image.Image, name: str, public=False):
+    def get_private_mazes(self, user: UserInfo) -> list[MazeInfo] | None:
+        if user is None:
+            return None
+        c = self.connection.cursor()
+        c.execute("SELECT MazeID, Name, Public FROM Mazes WHERE CreatorID=(?) ORDER BY Name;", (str(user.user_id),))
+        mazes = [MazeInfo(MazeID, Name, user, public) for (MazeID, Name, public) in c.fetchall()]
+        c.close()
+        self.connection.commit()
+        return mazes
+
+    def add_new_maze(self, mask: Image.Image, name: str, creator: UserInfo, public: bool = False) -> MazeInfo:
         c = self.connection.cursor()
         c.execute("""BEGIN TRANSACTION;""")
-        c.execute("""INSERT INTO Mazes (Name) VALUES ((?));""", (name,))
-        info = MazeInfo(c.lastrowid, name)
+        c.execute("""INSERT INTO Mazes (Name, Public, CreatorID) VALUES ((?), (?), (?));""",
+                  (name, public, creator.user_id))
+        info = MazeInfo(c.lastrowid, name, creator, public)
         mask.save(info.get_shape_path())
         c.execute("""COMMIT;""")
         c.close()
+        self.connection.commit()
+        return info
+
+    def delete_maze(self, maze: MazeInfo):
+        c = self.connection.cursor()
+        c.execute("""DELETE FROM Mazes WHERE MazeID = (?);""", (maze.MazeID,))
+        pathlib.Path.unlink(maze.get_shape_path())
+        c.close()
+        self.connection.commit()
 
     def add_user(self, user_info: UserInfo, password_hash: bytes):
         c = self.connection.cursor()
@@ -126,6 +153,7 @@ class Database:
             raise UserNotFoundError(f"User '{username}' does not exist")
         finally:
             c.close()
+            self.connection.commit()
 
     def authenticate_user(self, username: str, password_hash: bytes):
         """raises an error if username or password are wrong
@@ -145,6 +173,7 @@ class Database:
 
         finally:
             c.close()
+            self.connection.commit()
 
     def get_user(self, user_id) -> UserInfo:
         c = self.connection.cursor()
@@ -152,6 +181,7 @@ class Database:
                   " UserID = (?);", (user_id,))
         data = c.fetchone()
         c.close()
+        self.connection.commit()
         if data is None:
             raise UserNotFoundError(f"User {user_id} does not exist")
 
@@ -173,19 +203,30 @@ class Database:
             raise UserAlreadyExistsError(f"User with username '{new_username}' already exists") from e
         finally:
             c.close()
+            self.connection.commit()
 
     def update_password(self, user_id, new_password_hash):
         c = self.connection.cursor()
         c.execute("UPDATE Users SET PasswordHash = (?) WHERE UserID=(?)",
                   (new_password_hash, user_id))
         c.close()
+        self.connection.commit()
 
     def delete_user(self, user_id: int):
         c = self.connection.cursor()
+
+        # delete all mazes owned by this user
+        for maze in self.get_private_mazes(self.get_user(user_id)):
+            #  need to loop through mazes instead of executing sql because files also need to be deleted
+            self.delete_maze(maze)
+
+        # remove the user from the database
         c.execute("DELETE FROM Users WHERE UserID = (?)", (user_id,))
+        c.close()
+        self.connection.commit()
 
 
 if __name__ == "__main__":
     db = Database("database.db")
     print(db.get_maze_from_id(0))
-    print(db.get_all_mazes())
+    print(db.get_public_mazes())
