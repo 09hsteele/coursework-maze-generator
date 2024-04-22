@@ -50,11 +50,17 @@
         </button>
         <div class="collapse navbar-collapse" id="thenavbar">
             <ul class="navbar-nav me-auto">
-                {% for name, href in [("Home", url_for("index")),("Generate", url_for("maze_list")), ("Upload", url_for("upload_maze"))] %}
+                <li class="nav-item">
+                    <a href="{{ url_for("index") }}" class="nav-link"> Home </a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ url_for("maze_list") }}" class="nav-link"> Generate </a>
+                </li>
+                {% if current_user.is_authenticated %}
                     <li class="nav-item">
-                        <a class="nav-link {% if this_page == name %}active{% endif %}" href="{{ href }}">{{ name }}</a>
+                        <a href="{{ url_for("upload_maze") }}" class="nav-link"> Upload </a>
                     </li>
-                {% endfor %}
+                {% endif %}
             </ul>
             <ul class="navbar-nav d-flex">
                 {% if current_user.is_authenticated %}

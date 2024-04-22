@@ -2,5 +2,13 @@
 {% set this_page = "Home" %}
 {% block content %}
     {# TODO: Improve this page #}
-    <div><a href="{{ url_for('maze_list') }}">Click Here</a> to generate a maze</div>
+    <br>
+    <h1>About</h1>
+    <p>This is a maze generator created for my A-Level Computer Science coursework</p>
+    <p><a href="{{ url_for('maze_list') }}">Click Here</a> to generate a maze</p>
+    <h3>Features</h3>
+    <ul>
+        <li>Ability to generate mazes in different shapes</li>
+        <li>Ability to upload your own shapes</li>
+    </ul>
 {% endblock %}

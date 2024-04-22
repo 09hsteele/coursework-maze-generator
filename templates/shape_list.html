@@ -34,10 +34,8 @@
                    class="col maze_list_item btn btn-light">
                     <img src="{{ url_for("static", filename="mazes/maze_%d.png"%maze.MazeID) }}" draggable="false">
                     <div class="maze_name">{{ maze.Name }}</div>
-                    {#                    {% if maze.Creator.user_id != 0 %}#}
                     <div class="maze_creator"> created by: <span class="username">{{ maze.Creator.username }}</span>
                     </div>
-                    {#                    {% endif %}#}
                 </a>
             {% endfor %}
         </div>

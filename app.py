@@ -97,7 +97,7 @@ def maze_list():
         return render_template(
             "shape_list.html",
             public_mazes=database.get_public_mazes(),
-            private_mazes=database.get_private_mazes(current_user.info)
+            private_mazes=database.get_mazes_by_user(current_user.info)
         )
     else:
         return render_template("shape_list.html", public_mazes=database.get_public_mazes())
@@ -105,7 +105,6 @@ def maze_list():
 
 @app.route("/")
 def index():
-    """TODO:add description here"""
     return render_template("index.html")
 
 
@@ -294,6 +293,11 @@ def upload_maze():
             flash("Please enter a name for the maze", "error")
             return redirect(url_for("upload_maze"))
         public = True if request.form.get("public") else False
+
+        if guess_type(f.filename)[0] != "image/png":
+            flash(f"{guess_type(f.filename)[0]} not supported, please upload a png file", "error")
+            return redirect(url_for("upload_maze"))
+
         f.seek(0, os.SEEK_END)
         size = f.tell()
         f.seek(0)
@@ -301,23 +305,17 @@ def upload_maze():
             flash(f"Mask too big ({size} bytes)", "error")
             return redirect(url_for("upload_maze"))
 
-        uploaded = False
         try:
             mask = Image.open(f).convert("RGB")
         except UnidentifiedImageError:
-            if guess_type(f.filename)[0] != "image/png":
-                flash(f"{guess_type(f.filename)[0]} not supported, please upload "
-                      f"a png file", "error")
-            else:
-                flash("There was an unexpected problem with the file you uploaded", "error")
+            flash("There was an unexpected problem with the file you uploaded", "error")
             return redirect(url_for('upload_maze'))
 
-        while not uploaded:
+        while True:
             try:
                 generator.validate_mask(mask)
                 maze_info = database.add_new_maze(mask, name, current_user.info, public)
                 flash(f"Maze '{name}' successfully uploaded", "success")
-                uploaded = True
                 return redirect(url_for("generate_ui", maze_shape=maze_info.MazeID))
 
             except generator.NoEntrancesError:
@@ -351,6 +349,13 @@ def logout():
     logout_user()
     flash('Successfully logged out', 'success')
     return redirect(url_for('login'), 303)
+
+
+@app.errorhandler(db.UserNotFoundError)
+def user_not_found(_):
+    logout_user()
+    flash("Your account was deleted, you have been logged out.", "info")
+    return redirect(url_for("index"))
 
 
 @app.errorhandler(401)

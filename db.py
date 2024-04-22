@@ -28,17 +28,17 @@ class MazeNotFoundError(Exception):
 @dataclass
 class UserInfo:
     user_id: int
-    username: str
-    first_name: str
-    last_name: str
+    username: str | None
+    first_name: str | None
+    last_name: str | None
 
 
 @dataclass
 class MazeInfo:
     MazeID: int
-    Name: str = None
-    Creator: UserInfo = None
-    Public: bool = None
+    Name: str | None = None
+    Creator: UserInfo | None = None
+    Public: bool | None = None
 
     def get_shape_path(self):
         return pathlib.Path(f"static/mazes/maze_{self.MazeID}.png")
@@ -64,6 +64,7 @@ class Database:
          - they only include these colours: (#FFFFFF, #000000, #FF00FF, #00FFFF)
          - there is only one isolated group of black pixels
          - all entrance/exit pixels are on the border of the image
+         - are not larger than generator.MASK_MAX_SIZE bytes
 
         :raises: generator.MaskError or FileNotFoundError if it finds a problem
         """
@@ -101,7 +102,7 @@ class Database:
         self.connection.commit()
         return mazes
 
-    def get_private_mazes(self, user: UserInfo) -> list[MazeInfo] | None:
+    def get_mazes_by_user(self, user: UserInfo) -> list[MazeInfo] | None:
         if user is None:
             return None
         c = self.connection.cursor()
@@ -187,16 +188,16 @@ class Database:
 
         return UserInfo(*data)
 
-    def update_info(self, user_id: int, new_username: str = None, new_fname: str = None, new_lname: str = None):
+    def update_info(self, user_id: int, new_username: str = None, new_firstname: str = None, new_lastname: str = None):
         c = self.connection.cursor()
         try:
             c.execute("BEGIN TRANSACTION;")
             if new_username:
                 c.execute("UPDATE Users SET Username=(?) WHERE UserID=(?);", (new_username, user_id))
-            if new_fname:
-                c.execute("UPDATE Users SET FirstName=(?) WHERE UserID=(?);", (new_fname, user_id))
-            if new_lname:
-                c.execute("UPDATE Users SET LastName=(?) WHERE UserID=(?);", (new_lname, user_id))
+            if new_firstname:
+                c.execute("UPDATE Users SET FirstName=(?) WHERE UserID=(?);", (new_firstname, user_id))
+            if new_lastname:
+                c.execute("UPDATE Users SET LastName=(?) WHERE UserID=(?);", (new_lastname, user_id))
             c.execute("COMMIT;")
         except sqlite3.IntegrityError as e:
             c.execute("ROLLBACK;")
@@ -216,7 +217,7 @@ class Database:
         c = self.connection.cursor()
 
         # delete all mazes owned by this user
-        for maze in self.get_private_mazes(self.get_user(user_id)):
+        for maze in self.get_mazes_by_user(self.get_user(user_id)):
             #  need to loop through mazes instead of executing sql because files also need to be deleted
             self.delete_maze(maze)
 

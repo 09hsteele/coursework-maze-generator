@@ -1,7 +1,5 @@
 import io
-import math
 import random
-import sys
 from numbers import Number
 
 from PIL import Image, ImageDraw  # Importing Pillow (Image Library)
@@ -16,7 +14,7 @@ MAZE_CAN_GENERATE_COLOUR = (0, 0, 0)
 MAZE_CANNOT_GENERATE_COLOUR = (255, 255, 255)
 ENTRANCES_COLOUR = (255, 0, 255)
 EXITS_COLOUR = (0, 255, 255)
-MAX_MASK_SIZE = 20_000  # masks over 20KB are not allowed (for performance)
+MAX_MASK_SIZE = 20_000  # masks over 20KB are not allowed (for performance reasons)
 
 
 class MaskError(Exception):

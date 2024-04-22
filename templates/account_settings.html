@@ -28,11 +28,10 @@
     </div>
     <div class="section">
         <h3>Delete Account</h3>
-        <form action="{{ url_for("delete_account") }}" method="POST">
+        <form id="delete_account_form" action="{{ url_for("delete_account") }}" method="POST">
             <p>Type your password below to delete your account</p>
             <input type="password" name="password" placeholder="Password">
-            <button type="submit" href="{{ url_for("index") }}" class="text-bg-danger del-account">Delete Account
-            </button>
+            <button type="submit" class="text-bg-danger del-account">Delete Account</button>
         </form>
     </div>
     <script src="{{ url_for("static", filename="user_validation.js") }}"></script>
@@ -46,7 +45,7 @@
             $(e.target).attr("hidden", "hidden");
             $("#save_details_button").removeAttr("hidden");
             $("#discard_changes_button").removeAttr("hidden");
-        })
+        });
         $("#personal_info_form").on("submit", e => {
             if (!validate_username($("#username").val())) {
                 return false;
@@ -60,13 +59,16 @@
             if ($("#lastname").val() === "{{ current_user.info.last_name }}") {
                 $("#lastname").attr("disabled", "disabled")
             }
-        })
-        $(".change_password_form").on("submit", ()=> {
+        });
+        $(".change_password_form").on("submit", () => {
             if ($("#new_password").val() !== $("#confirm_password").val()) {
                 toast_message("Passwords do not match", "error")
                 return false;
             }
-        })
+        });
+        $("#delete_account_form").on("submit", () => {
+            return confirm("Are you sure? everything you have uploaded will be deleted");
+        });
     </script>
 {% endblock %}
 
@@ -76,6 +78,7 @@
             margin: 20px 20px 100px;
             padding: 20px;
         }
+
         .section > form {
             margin: 20px;
         }
