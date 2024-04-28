@@ -8,9 +8,9 @@
 {% block content %}
     <h1 id="title">Sign Up</h1>
     <form method="POST">
-        <input placeholder="username" type="text" name="username" id="username" required="required"><br>
-        <input placeholder="first name" type="text" name="firstname" id="firstname" required="required">
-        <input placeholder="last name" type="text" name="lastname" id="lastname" required="required"><br>
+        <input autocomplete="off" placeholder="username" type="text" name="username" id="username" required="required"><br>
+        <input autocomplete="given-name" placeholder="first name" type="text" name="firstname" id="firstname" required="required">
+        <input autocomplete="family-name" placeholder="last name" type="text" name="lastname" id="lastname" required="required"><br>
         <input placeholder="password" type="password" name="password" id="password" required="required"><br>
         <input placeholder="confirm password" type="password" id="confirmpassword" required="required"><br>
         <input hidden="hidden" type="text" value="{{ request.args.get("next") or "" }}" name="next">
@@ -28,7 +28,12 @@
 
             {# check if every character in username is allowed #}
             if (!validate_username($("#username").val())) {
-                return false
+                return false;
+            }
+
+            {# check if password is valid #}
+            if (!validate_password($("#password").val())) {
+                return false;
             }
         })
     </script>

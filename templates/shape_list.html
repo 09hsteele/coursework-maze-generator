@@ -2,8 +2,8 @@
 {% set this_page = "Generate" %}
 {% block content %}
     <h1>Generate a Maze</h1>
-    <p>Choose one of the shapes below to generate a maze</p>
     <div class="container-fluid">
+        <p>Choose one of the shapes below to generate a maze</p>
         {% if current_user.is_authenticated %}
             <h3>My Mazes</h3><br>
             <div class="row row-cols-auto">
@@ -26,6 +26,11 @@
                         to upload one</p>
                 {% endif %}
             </div>
+        {% else %}
+            <p>Can't find a shape you like?
+                <a href="{{ url_for('signup', next=url_for('upload_maze')) }}">Create an Account</a>
+                to upload your own
+            </p>
         {% endif %}
         <h3>Public Mazes</h3>
         <div class="row row-cols-auto">

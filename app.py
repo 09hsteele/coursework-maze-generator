@@ -5,6 +5,8 @@ from io import BytesIO
 from mimetypes import guess_type
 
 from hashlib import sha256
+
+import werkzeug.exceptions
 from PIL import Image, UnidentifiedImageError
 from flask import *
 from flask_login import LoginManager, current_user, login_user, UserMixin, login_required, logout_user, \
@@ -14,7 +16,8 @@ import generator
 import db
 
 app = Flask(__name__)
-database = db.Database("database.db", False)
+app.secret_key = 'ZouzwDJ7wPt1ldyFaxM57l322f6Wc5X57GhnA0eMvD'
+database = db.Database("database.db", True)
 login = LoginManager(app)
 
 
@@ -364,7 +367,7 @@ def login_required_page(_):
 
 
 @app.errorhandler(Exception)
-def error_page(e):
+def error_page(e: werkzeug.exceptions.HTTPException):
     return render_template("error.html", error=e)
 
 
@@ -374,6 +377,5 @@ def favicon():
 
 
 if __name__ == '__main__':
-    app.secret_key = 'ZouzwDJ7wPt1ldyFaxM57l322f6Wc5X57GhnA0eMvD'
     # randomly generated alphanumeric characters
     app.run(debug=True, host="0.0.0.0")

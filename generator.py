@@ -154,7 +154,7 @@ class MazeGenerator:
         entrance_pixels = []  # list to keep track of entrances, these can
         # only be found once the whole adjacency dict has been created
 
-        self.adjacency_dict = {}  # initailises an empty adjacency dictionary
+        self.adjacency_dict = {}  # initialises an empty adjacency dictionary
         for x in range(mask.width):
             for y in range(mask.height):
                 cur_pixel = Pixel(x, y)
@@ -175,16 +175,17 @@ class MazeGenerator:
         if seed is not None:
             random.seed(seed)
 
-        # choose any arbitary cell in the maze
-        # as all cells will be connected once the algorithm has completed, this
-        # starting cell can be any of the cells in the maze
+        # choose any arbitrary cell in the maze
+        # as all cells will be connected once the algorithm has completed, this starting cell can be any of the cells in
+        # the maze
         todo = [next(iter(self.adjacency_dict.keys()))]
 
         maze_adj_dict = {}
-        for k in self.adjacency_dict.keys():
+        for k in self.adjacency_dict.keys():  # create a new adjacency dict that stores the connection between maze
+            # cells. Starts with every cell in the maze being connected to no others (represented by an empty list)
             maze_adj_dict[k] = []
 
-        visited = set()
+        visited = set()  # set of cells that have already been visited by the algorithm (should not be considered again)
 
         while len(todo) > 0:
             current_cell = todo[0]
@@ -192,7 +193,7 @@ class MazeGenerator:
             unvisited_neighbours = [n for n in self.adjacency_dict[current_cell]
                                     if n not in visited]
 
-            if len(unvisited_neighbours) == 0:
+            if len(unvisited_neighbours) == 0:  # cell has no unvisited neighbours, so no reason to consider it further
                 todo.pop(0)
             else:
                 neighbour = random.choice(unvisited_neighbours)
@@ -241,13 +242,13 @@ class MazeGenerator:
         arrow_head_left = (perp + direction * 4) * 0.2
         arrow_head_right = (direction * 4 - perp) * 0.2
 
-        context.move_to(*cell)
+        context.move_to(*cell)  # unpack the cell coordinates to be used as x, y arguments.
         context.line_to(*(cell + direction))
         context.line_to(*(cell + arrow_head_right))
         context.move_to(*(cell + direction))
         context.line_to(*(cell + arrow_head_left))
 
-        context.stroke()
+        context.stroke()  # draw the arrow
 
     @staticmethod
     def draw_wall(start_cell: Cell, end_cell: Cell, context: cairo.Context):
@@ -281,6 +282,7 @@ class MazeGenerator:
                     raise MaskError("Entrance found not on border of image")
 
                 cell = self.pixel_to_cell(pixel)
+                # noinspection PyTypeChecker
                 while 0 <= cell.x < self.cols and 0 <= cell.y < self.rows:
                     if cell in self.adjacency_dict.keys():
                         break

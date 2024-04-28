@@ -1,10 +1,14 @@
 {% extends 'base.html' %}
+
+{% block title %} Upload {% endblock %}
 {% block content %}
     <h1>Create a maze shape</h1>
     <p>
         Maze shapes in this project are stored as png files, with black pixels in
         the shape of the maze.
     </p>
+    <p>To create your own maze shape, use image editing software that is able to export to PNG and create an image that
+    follows the rules explained below.</p>
     <ul>
         <li>
             The image you upload must only contain black (<span style="background:#000000;color:white">#000000</span>)
@@ -14,19 +18,19 @@
         </li>
         <li>
             The black pixels (indicating the shape of the maze) should all be part of one connected section: there
-            should be no completely disconnected areas
+            should be no completely disconnected areas.
         </li>
-        <li>Please upload the image as a PNG file. Other formats such as JPEG will have lossy compression which will cause errors</li>
-        <li>The file must be no larger than 20KB in size</li>
+        <li>Please upload the image as a PNG file. Other formats such as JPEG will have lossy compression which will cause errors.</li>
+        <li>The file must be no larger than 20KB in size.</li>
         <li>
             <i>Optional: </i>you can add magenta (<span style="background: #FF00FF">#FF00FF</span>) and aqua
             (<span style="background: #00FFFF">#00FFFF</span>) pixels to the border of the image to indicate where the
-            entrance and exit should go.
+            entrance and exit should go. The program will then put an entrance/exit on that side of the maze.
         </li>
-    </ul>
+    </ul><br>
     <div class="col-4">
         <form method="POST" enctype="multipart/form-data">
-            <input name="name" type="text" id="name" placeholder="Maze Name" required>
+            <input autocomplete="off" name="name" type="text" id="name" placeholder="Maze Name" required>
             <label for="public_checkbox">Public: </label>
             <input id="public_checkbox" name="public" type="checkbox"><br><br>
             <input id="file_input" type="file" name="file" accept=".png" required>

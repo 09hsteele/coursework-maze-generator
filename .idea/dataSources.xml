@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="DataSourceManagerImpl" format="xml" multifile-model="true">
-    <data-source source="LOCAL" name="database" uuid="971d4293-18bf-4d30-8e2a-db189cfc3019">
+    <data-source source="LOCAL" name="database [2]" uuid="df6f9d24-7fe9-46ca-a809-7111f15e822c">
       <driver-ref>sqlite.xerial</driver-ref>
       <synchronize>true</synchronize>
       <jdbc-driver>org.sqlite.JDBC</jdbc-driver>
-      <jdbc-url>jdbc:sqlite:C:\Users\School\PycharmProjects\coursework-maze-generator\database.db</jdbc-url>
+      <jdbc-url>jdbc:sqlite:C:\programming\Coursework\database.db</jdbc-url>
       <working-dir>$ProjectFileDir$</working-dir>
       <libraries>
         <library>

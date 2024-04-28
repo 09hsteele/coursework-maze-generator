@@ -8,8 +8,8 @@
 {% block content %}
     <h1 id="title">Log In</h1>
     <form method="POST">
-        <input placeholder="username" type="text" name="username" id="username" required="required"><br>
-        <input placeholder="password" type="password" name="password" id="password" required="required"><br>
+        <input autocomplete="username" placeholder="username" type="text" name="username" id="username" required="required"><br>
+        <input autocomplete="current-password" placeholder="password" type="password" name="password" id="password" required="required"><br>
         <input hidden="hidden" type="text" value="{{ request.args.get("next") or "" }}" name="next">
         <input type="submit" value="Log In"><br><br>
         Don't have an account? <a href="{{ url_for("signup", next=request.args.get("next")) }}">Sign Up</a>
