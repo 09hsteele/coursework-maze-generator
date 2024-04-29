@@ -281,7 +281,7 @@ def delete_account():
         return redirect(url_for("settings"))
 
 
-@app.route("/uploadmaze", methods=["GET", "POST"])
+@app.route("/upload", methods=["GET", "POST"])
 @login_required
 def upload_maze():
     if request.method == "GET":

@@ -2,32 +2,8 @@
 
 {% block title %} Upload {% endblock %}
 {% block content %}
-    <h1>Create a maze shape</h1>
-    <p>
-        Maze shapes in this project are stored as png files, with black pixels in
-        the shape of the maze.
-    </p>
-    <p>To create your own maze shape, use image editing software that is able to export to PNG and create an image that
-    follows the rules explained below.</p>
-    <ul>
-        <li>
-            The image you upload must only contain black (<span style="background:#000000;color:white">#000000</span>)
-            and
-            white (<span style="background:#FFFFFF; color: black">#FFFFFF</span>) pixels, any other colours are not
-            allowed (no shades of grey e.g. <span style="background: #010101; color: white">#010101</span>).
-        </li>
-        <li>
-            The black pixels (indicating the shape of the maze) should all be part of one connected section: there
-            should be no completely disconnected areas.
-        </li>
-        <li>Please upload the image as a PNG file. Other formats such as JPEG will have lossy compression which will cause errors.</li>
-        <li>The file must be no larger than 20KB in size.</li>
-        <li>
-            <i>Optional: </i>you can add magenta (<span style="background: #FF00FF">#FF00FF</span>) and aqua
-            (<span style="background: #00FFFF">#00FFFF</span>) pixels to the border of the image to indicate where the
-            entrance and exit should go. The program will then put an entrance/exit on that side of the maze.
-        </li>
-    </ul><br>
+    <h1>Upload a New Maze Template</h1>
+    <br>
     <div class="col-4">
         <form method="POST" enctype="multipart/form-data">
             <input autocomplete="off" name="name" type="text" id="name" placeholder="Maze Name" required>
@@ -35,9 +11,76 @@
             <input id="public_checkbox" name="public" type="checkbox"><br><br>
             <input id="file_input" type="file" name="file" accept=".png" required>
             <img id="file_preview" src="" alt="">
-            <input id="upload_button" type="submit" value="Upload" disabled>
+            <button id="upload_button" type="submit" disabled><i class="bi bi-upload"></i> Upload</button>
         </form>
     </div>
+    <br><br>
+    <h2>How to Create a Maze Template</h2>
+    <p>
+        Maze shapes in this project are stored as png files, with a black shape of where the maze can generate, like a
+        silhouette.
+    </p>
+    <p>
+        To create a maze shape, make a PNG image in some image editing software. It should have a white background and
+        its dimensions should be around 400x400, as the file size <b>must not exceed 20KB</b>.
+    </p>
+    <p>
+        Draw a solid black shape on this white background. There should be <b>no disconnected parts </b>of this shape, it
+        should be one connected solid silhouette of the maze shape you want to create.
+    </p>
+    <figure>
+        <img src="{{ url_for('static', filename='example2.png') }}" alt="">
+        <figcaption><i class="bi bi-x-square-fill text-danger"></i>
+            This will not work, the black circle around the outside is not connected to the other black section of the
+            eyes inside.
+        </figcaption>
+    </figure>
+    <figure>
+        <img src="{{ url_for('static', filename='example1.png') }}" alt="">
+        <figcaption><i class="bi bi-check-square-fill text-success"></i>
+            This is acceptable, there is only one black section. The white parts will stop the maze from being generated
+            in the eyes, but they don't cut off parts of the black section. The black part is one solid shape.
+        </figcaption>
+    </figure>
+    <p>The shape must be in <b>black and white, not greyscale</b>. You might have to zoom in to see the pixels in order to tell
+        the difference</p>
+    <figure>
+        <img src="{{ url_for('static', filename='example4.png') }}" alt="">
+        <figcaption><i class="bi bi-x-square-fill text-danger"></i>
+            Some of the pixels on the border between the black and white sections are grey, not just black and white.
+        </figcaption>
+    </figure>
+    <figure>
+        <img src="{{ url_for('static', filename='example3.png') }}" alt="">
+        <figcaption><i class="bi bi-check-square-fill text-success"></i>
+            All pixels in this image are either black or white, there is no in-between.
+        </figcaption>
+    </figure>
+    <h5><i>Optional: specify a custom entrance and exit</i></h5>
+    <p>
+        The program will default to putting the start and end of the maze in the centre of the left and right side of
+        the maze. If you want to specify that they should be placed elsewhere, then you should add <b>one</b> magenta
+        (<span
+            style="background: #FF00FF">#FF00FF</span>) and <b>one</b> aqua (<span
+            style="background: #00FFFF">#00FFFF</span>) pixel at the far border of the image, on the side that you want
+        the entrance/exit to be on.
+    </p>
+
+    <figure>
+        <img src="{{ url_for('static', filename='example6.png') }}" alt="">
+        <figcaption>
+            <i class="bi bi-x-square-fill text-danger"></i>
+            The magenta and aqua pixels should be on the border of the image.
+        </figcaption>
+    </figure>
+    <figure>
+        <img src="{{ url_for('static', filename='example5.png') }}" alt="">
+        <figcaption>
+            <i class="bi bi-check-square-fill text-success"></i>
+            The magenta and aqua pixels are on the border of the image.
+        </figcaption>
+    </figure>
+
 
     <script>
         $("#file_input").on("input", () => {
@@ -58,6 +101,23 @@
     <style>
         #file_preview {
             max-width: 100%;
+        }
+
+        figcaption {
+            width: 400px;
+        {#font-style: italic;#} text-align: center;
+        }
+
+        figure {
+            width: 450px;
+            display: inline-block;
+            vertical-align: top;
+        }
+
+        figure > img {
+            width: 200px;
+            position: relative;
+            left: 100px;
         }
     </style>
 {% endblock %}

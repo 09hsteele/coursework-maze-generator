@@ -49,7 +49,8 @@ def validate_mask(mask: Image.Image):
             if not no_isolated_pixels:
                 # Fill the connected black pixels with white. If we later find more black pixels, they must be
                 # disconnected
-                ImageDraw.floodfill(new_mask, (x, y), MAZE_CAN_GENERATE_COLOUR, MAZE_CANNOT_GENERATE_COLOUR)
+                ImageDraw.floodfill(new_mask, (x, y), MAZE_CANNOT_GENERATE_COLOUR)
+                no_isolated_pixels = True
             else:
                 raise MaskError(f"found disconnected part of maze at {(x, y)}")
         elif col != MAZE_CANNOT_GENERATE_COLOUR:
