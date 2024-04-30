@@ -26,12 +26,15 @@ class NoEntrancesError(MaskError):
 
 
 def validate_mask(mask: Image.Image):
-    new_mask = mask.copy()  # create a copy of the maze for checking for blocks of pixels
+    mask_copy = mask.copy()  # create a copy of the maze for checking for blocks of pixels
 
     # flags of things that we need to check
     entrance_found = False
     exit_found = False
-    no_isolated_pixels = False
+    maze_found = False
+
+    if mask.width <= 3 or mask.height <= 3:
+        raise MaskError(f"Mask image too small")
 
     for i, col in enumerate(mask.getdata()):
         (y, x) = divmod(i, mask.width)
@@ -45,15 +48,15 @@ def validate_mask(mask: Image.Image):
                 raise MaskError(f"Found more than pixel of colour {EXITS_COLOUR}")
             if is_entrance_valid(x, y, mask):
                 exit_found = True
-        elif new_mask.getpixel((x, y)) == MAZE_CAN_GENERATE_COLOUR:
-            if not no_isolated_pixels:
+        elif mask_copy.getpixel((x, y)) == MAZE_CAN_GENERATE_COLOUR:  # current pixel is black in the mask copy
+            if not maze_found:  # program is yet to encounter a black pixel
                 # Fill the connected black pixels with white. If we later find more black pixels, they must be
                 # disconnected
-                ImageDraw.floodfill(new_mask, (x, y), MAZE_CANNOT_GENERATE_COLOUR)
-                no_isolated_pixels = True
-            else:
+                ImageDraw.floodfill(mask_copy, (x, y), MAZE_CANNOT_GENERATE_COLOUR)
+                maze_found = True
+            else:  # program has already found a black pixel, so this one must be disconnected
                 raise MaskError(f"found disconnected part of maze at {(x, y)}")
-        elif col != MAZE_CANNOT_GENERATE_COLOUR:
+        elif col != MAZE_CANNOT_GENERATE_COLOUR and col != MAZE_CAN_GENERATE_COLOUR:
             #  pixel is not one of the allowed colours
             raise MaskError(f"found pixel with colour {col} at {(x, y)}")
     if not entrance_found and not exit_found:
@@ -62,12 +65,19 @@ def validate_mask(mask: Image.Image):
         raise MaskError(f"Could not find a pixel with colour {ENTRANCES_COLOUR}")
     if not exit_found:
         raise MaskError(f"Could not find a pixel with colour {EXITS_COLOUR}")
-    if no_isolated_pixels:
-        raise MaskError(f"Found no {MAZE_CAN_GENERATE_COLOUR} colour pixels")
-    return True
+    if not maze_found:
+        raise MaskError(f"Found not find any {MAZE_CAN_GENERATE_COLOUR} colour pixels")
 
 
 def is_entrance_valid(x: int, y: int, mask: Image.Image):
+    """Determines if an entrance indicator pixel will produce a valid entrance by checking if it would intersect with
+    the maze.
+    Raises a :class:`MaskError` if entrance is invalid
+
+    :param x: The x-coordinate of the entrance pixel to consider
+    :param y: The y-coordinate of the entrance pixel to consider
+    :param mask: The mask image to check
+    """
     p = Pixel(x, y)
     if y == 0:
         v = Pixel(0, 1)
@@ -233,6 +243,7 @@ class MazeGenerator:
     def draw_arrow(cell: Cell, direction: Vec2D, context: cairo.Context):
         """
         draws an arrow in the specified direction between the specified cell and its adjacent
+
         :param cell: The cell to start the arrow at
         :param direction: The direction to draw the arrow
         :param context: The cairo context to draw the arrow on
@@ -255,6 +266,7 @@ class MazeGenerator:
     def draw_wall(start_cell: Cell, end_cell: Cell, context: cairo.Context):
         """
         draws the wall between the two specified cells on the given context
+
         :param start_cell: The first cell to draw the wall between
         :param end_cell: The second cell to draw the wall between
         :param context:  The cairo context to draw the wall on

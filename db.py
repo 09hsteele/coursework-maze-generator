@@ -58,15 +58,15 @@ class Database:
         self.connection.close()
 
     def check_mask_integrity(self) -> None:
-        """
-        checks if all masks that are stored in the database actually exit in storage
+        r"""
+        checks if all masks that are stored in the database actually exist in storage
         and are all valid maze masks. i.e. they follow the following rules:
-         - they only include these colours: (#FFFFFF, #000000, #FF00FF, #00FFFF)
+         - they only include these colours: (``#FFFFFF``, ``#000000``, ``#FF00FF``, ``#00FFFF``)
          - there is only one isolated group of black pixels
          - all entrance/exit pixels are on the border of the image
-         - are not larger than generator.MASK_MAX_SIZE bytes
+         - are not larger than :data:`generator.MAX_MASK_SIZE` bytes
 
-        :raises: generator.MaskError or FileNotFoundError if it finds a problem
+        :raises: :class:`generator.MaskError` or FileNotFoundError if it finds a problem
         """
         for maze in self.get_public_mazes():
             try:
@@ -77,9 +77,9 @@ class Database:
                 if (size := os.stat(maze.get_shape_path()).st_size) > MAX_MASK_SIZE:
                     raise MaskError(f"File too big ({size})")
                 validate_mask(mask)
-                print(f"{maze.MazeID} good :)")
+                print(f"{maze.MazeID}:{maze.Name} good :)")
             except Exception as e:
-                print(f"{maze.MazeID} bad >:(")
+                print(f"{maze.MazeID}:{maze.Name} bad >:(")
                 print(repr(e))
         print("database maze check completed")
 

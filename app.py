@@ -22,7 +22,7 @@ login = LoginManager(app)
 
 
 class ExternalURLNotAllowedError(Exception):
-    """raised when trying to redirect to an external url - bad security >:("""
+    """raised when trying to redirect to an external url - bad security :("""
 
 
 class CharacterNotAllowedError(Exception):
@@ -30,6 +30,13 @@ class CharacterNotAllowedError(Exception):
 
 
 def validate_username(username: str) -> str:
+    """
+    Checks if a username is valid i.e. it contains only authorised characters.
+    Raises a :class:`CharacterNotAllowedError` if it is not valid
+
+    :param username: the username (string) to validate
+    :type username: str
+    """
     allowed_chars = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ._-'
     print(username)
     for char in username:
@@ -63,6 +70,12 @@ def validate_integer(i: str, min_value: int = None, max_value: int = None) -> in
 
 
 def validate_next(url: str) -> str | None:
+    """
+    Checks the value of the ``next`` GET attribute, if it doesn't start with a '/', it is considered an external url,
+    and a :class:`ExternalURLNotAllowedError` is raised
+
+    :param url: the url to validate
+    """
     if not url:
         return None
     if url[0] == '/':
