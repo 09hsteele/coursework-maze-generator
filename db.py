@@ -27,6 +27,7 @@ class MazeNotFoundError(Exception):
 
 @dataclass
 class UserInfo:
+    """Stores information about a user in the database, doesn't include password"""
     user_id: int
     username: str | None
     first_name: str | None
@@ -35,6 +36,7 @@ class UserInfo:
 
 @dataclass
 class MazeInfo:
+    """Stores information about a maze in the database. """
     MazeID: int
     Name: str | None = None
     Creator: UserInfo | None = None
@@ -48,6 +50,7 @@ class MazeInfo:
 
 
 class Database:
+    """Represents a connection to a database. There is one global instance of this in app.py"""
     def __init__(self, file_path: str, check_integrity: bool = False):
         self.connection = sqlite3.connect(file_path, check_same_thread=False)
         self.connection.execute("PRAGMA foreign_keys = ON;")
@@ -58,15 +61,15 @@ class Database:
         self.connection.close()
 
     def check_mask_integrity(self) -> None:
-        """
-        checks if all masks that are stored in the database actually exit in storage
+        r"""
+        checks if all masks that are stored in the database actually exist in storage
         and are all valid maze masks. i.e. they follow the following rules:
-         - they only include these colours: (#FFFFFF, #000000, #FF00FF, #00FFFF)
+         - they only include these colours: (``#FFFFFF``, ``#000000``, ``#FF00FF``, ``#00FFFF``)
          - there is only one isolated group of black pixels
          - all entrance/exit pixels are on the border of the image
-         - are not larger than generator.MASK_MAX_SIZE bytes
+         - are not larger than :data:`generator.MAX_MASK_SIZE` bytes
 
-        :raises: generator.MaskError or FileNotFoundError if it finds a problem
+        :raises: :class:`generator.MaskError` or FileNotFoundError if it finds a problem
         """
         for maze in self.get_public_mazes():
             try:
@@ -77,13 +80,14 @@ class Database:
                 if (size := os.stat(maze.get_shape_path()).st_size) > MAX_MASK_SIZE:
                     raise MaskError(f"File too big ({size})")
                 validate_mask(mask)
-                print(f"{maze.MazeID} good :)")
+                print(f"{maze.MazeID}:{maze.Name} good :)")
             except Exception as e:
-                print(f"{maze.MazeID} bad >:(")
+                print(f"{maze.MazeID}:{maze.Name} bad >:(")
                 print(repr(e))
         print("database maze check completed")
 
     def get_maze_from_id(self, maze_id: int) -> MazeInfo:
+        """Returns information about a maze from its id"""
         c = self.connection.execute("SELECT Name, CreatorID, Public FROM Mazes WHERE MazeID = (?);", (maze_id,))
         try:
             name, creator_id, public = c.fetchone()
@@ -95,6 +99,7 @@ class Database:
             self.connection.commit()
 
     def get_public_mazes(self) -> list[MazeInfo]:
+        """Returns a list of information about mazes that are public"""
         c = self.connection.cursor()
         c.execute("SELECT MazeID, Name, CreatorID FROM Mazes WHERE Public=1 ORDER BY Name;")
         mazes = [MazeInfo(MazeID, Name, self.get_user(CreatorID), True) for (MazeID, Name, CreatorID) in c.fetchall()]
@@ -103,6 +108,7 @@ class Database:
         return mazes
 
     def get_mazes_by_user(self, user: UserInfo) -> list[MazeInfo] | None:
+        """Returns a list of information about mazes owned by the user specified"""
         if user is None:
             return None
         c = self.connection.cursor()
@@ -113,11 +119,13 @@ class Database:
         return mazes
 
     def add_new_maze(self, mask: Image.Image, name: str, creator: UserInfo, public: bool = False) -> MazeInfo:
+        """Adds a new maze to the database, storing the mask in its required location on the file system"""
         c = self.connection.cursor()
         c.execute("""BEGIN TRANSACTION;""")
         c.execute("""INSERT INTO Mazes (Name, Public, CreatorID) VALUES ((?), (?), (?));""",
                   (name, public, creator.user_id))
-        info = MazeInfo(c.lastrowid, name, creator, public)
+        info = MazeInfo(c.lastrowid, name, creator, public)  # create a MazeInfo object to check where the maze should
+        # be stored
         mask.save(info.get_shape_path())
         c.execute("""COMMIT;""")
         c.close()
@@ -125,6 +133,7 @@ class Database:
         return info
 
     def delete_maze(self, maze: MazeInfo):
+        """Deletes a maze from the database, also deletes the corresponding mask file"""
         c = self.connection.cursor()
         c.execute("""DELETE FROM Mazes WHERE MazeID = (?);""", (maze.MazeID,))
         pathlib.Path.unlink(maze.get_shape_path())
@@ -132,6 +141,7 @@ class Database:
         self.connection.commit()
 
     def add_user(self, user_info: UserInfo, password_hash: bytes):
+        """Adds a user to the database"""
         c = self.connection.cursor()
         try:
             c.execute("""INSERT INTO Users (Username, FirstName, LastName, PasswordHash)
@@ -144,7 +154,8 @@ class Database:
             c.close()
             self.connection.commit()
 
-    def get_user_from_username(self, username: str):
+    def get_user_from_username(self, username: str) -> UserInfo:
+        """Returns information about a user from their username"""
         c = self.connection.cursor()
         try:
             c.execute("""SELECT UserID, Username, FirstName, LastName FROM Users
@@ -176,7 +187,8 @@ class Database:
             c.close()
             self.connection.commit()
 
-    def get_user(self, user_id) -> UserInfo:
+    def get_user(self, user_id: int) -> UserInfo:
+        """Returns information about a user from their id"""
         c = self.connection.cursor()
         c.execute("SELECT UserID, Username, FirstName, LastName FROM Users WHERE"
                   " UserID = (?);", (user_id,))
@@ -189,6 +201,7 @@ class Database:
         return UserInfo(*data)
 
     def update_info(self, user_id: int, new_username: str = None, new_firstname: str = None, new_lastname: str = None):
+        """Changes information about a user specified by their id"""
         c = self.connection.cursor()
         try:
             c.execute("BEGIN TRANSACTION;")
@@ -206,7 +219,8 @@ class Database:
             c.close()
             self.connection.commit()
 
-    def update_password(self, user_id, new_password_hash):
+    def update_password(self, user_id: int, new_password_hash: bytes):
+        """Changes a user's password"""
         c = self.connection.cursor()
         c.execute("UPDATE Users SET PasswordHash = (?) WHERE UserID=(?)",
                   (new_password_hash, user_id))
@@ -214,6 +228,7 @@ class Database:
         self.connection.commit()
 
     def delete_user(self, user_id: int):
+        """Deletes the user with the specified user id, along with any mazes they have created."""
         c = self.connection.cursor()
 
         # delete all mazes owned by this user
